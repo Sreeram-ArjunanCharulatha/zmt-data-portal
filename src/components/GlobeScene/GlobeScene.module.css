@@ -1,0 +1,273 @@
+.wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* Transparent: the workspace gradient behind shows through, so the
+     globe sits in the page rather than in a boxed-off panel. The
+     atmosphere shader owns the only halo in the scene. */
+  background: transparent;
+}
+
+/* A giant watermark sitting behind the (alpha-cleared) canvas. The Earth
+   is painted on top of it every frame, so the sphere visually punches
+   through the middle of the wordmark without any masking trick. */
+.wordmark {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+.wordmarkText {
+  font-family: var(--font-wordmark);
+  font-weight: 700;
+  /* Spec-matched fallback (clamp(300px, 50vw, 1000px): ~50% viewport
+     width, floor 300px, ceiling 1000px) — this is only what paints for
+     the first frame or two. useFitWordmark then measures the resolved
+     font's real glyph metrics (including this letter-spacing) and sets
+     a precise inline font-size once mounted, which is what actually
+     governs the size seen after mount. A raw vw/clamp guess alone
+     overflowed and got clipped the first time this mark was built,
+     because the real resolved font (Avenir Next isn't installed on
+     every machine) doesn't match a guessed percentage — measuring keeps
+     the same target size without reintroducing that bug. */
+  font-size: clamp(300px, 50vw, 1000px);
+  line-height: 1;
+  /* Tight negative spacing, matching the source design. This value is
+     passed into useFitWordmark's `letterSpacingEm` too, so the two stay
+     in sync; changing one without the other reintroduces the overflow/
+     clipping bug. */
+  letter-spacing: -0.055em;
+  color: #ffffff;
+  /* Soft-light blend against the workspace gradient underneath is what
+     actually gives the mark its washed-out, slim appearance — not the
+     font weight itself, which stays heavy (800). Opacity dropped from
+     the original 0.5 spec value — even blended, full weight at 0.5 read
+     as too dominant against the workspace, competing with the globe
+     instead of sitting quietly behind it. */
+  opacity: 0.2;
+  mix-blend-mode: soft-light;
+  text-shadow: 0 18px 58px rgba(2, 27, 48, 0.18);
+  white-space: nowrap;
+}
+
+.canvas {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none; /* let OrbitControls own touch gestures */
+}
+
+.loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  color: #cfe6f5;
+  z-index: 2;
+}
+
+.spinner {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(207, 230, 245, 0.25);
+  border-top-color: var(--primary-light-blue);
+  animation: spin 900ms linear infinite;
+}
+
+.loadingText {
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+/* ---------------------------- tooltip ---------------------------- */
+
+/* The Html wrapper div itself (positioned by drei via translate3d) has
+   no pointer-events rule by default, so it sits on top of the canvas and
+   steals hover from the sprite beneath it — the sprite's pointerOut then
+   pointerOver fire back-to-back, which is what caused the tooltip to
+   flicker rapidly instead of just following the cursor. */
+.tooltipWrapper {
+  pointer-events: none;
+}
+
+.tooltip {
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 18px));
+  min-width: 168px;
+  max-width: 250px;
+  padding: 9px 11px;
+  border-radius: var(--radius-md);
+  background: var(--scene-panel-solid);
+  border: 1px solid var(--scene-border);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+  color: var(--scene-text);
+  font-family: var(--font-sans);
+  animation: tooltipIn 140ms var(--ease-out);
+}
+
+.tooltip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 9px;
+  height: 9px;
+  transform: translateX(-50%) rotate(45deg);
+  background: var(--scene-panel-solid);
+  border-right: 1px solid var(--scene-border);
+  border-bottom: 1px solid var(--scene-border);
+}
+
+.tooltipTitle {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--scene-text);
+}
+
+.tooltipMeta {
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--scene-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tooltipCount {
+  font-weight: 700;
+  color: var(--primary-light-blue);
+}
+
+@keyframes tooltipIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-100% - 10px));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, calc(-100% - 18px));
+  }
+}
+
+/* --------------------------- statistics -------------------------- */
+
+/* One compact capsule, centred along the bottom edge. Deliberately
+   lighter and smaller than the control dock — a status line the eye can
+   skim, not a second toolbar competing for attention. */
+.stats {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: var(--space-5);
+  z-index: 3;
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-4);
+  padding: 8px var(--space-4);
+  border-radius: var(--radius-pill);
+  background: rgba(3, 20, 32, 0.86);
+  border: 1px solid rgba(190, 228, 250, 0.22);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(12px) saturate(1.1);
+  /* Clearance is sized to the control dock's own footprint (it only
+     encroaches from the right), not the sidebar — the old formula
+     doubled a 300px sidebar allowance on both sides and went negative
+     on narrow viewports, collapsing the capsule under the dock. */
+  max-width: min(520px, calc(100% - 200px));
+}
+
+.statGroup {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.statDivider {
+  width: 1px;
+  align-self: center;
+  height: 16px;
+  background: rgba(190, 228, 250, 0.24);
+}
+
+.statValue {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  color: #edfaff;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.015em;
+}
+
+.statValueMuted {
+  font-weight: 500;
+  color: var(--scene-text-muted);
+}
+
+.statLabel {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(190, 222, 236, 0.7);
+}
+
+@media (max-width: 720px) {
+  .stats {
+    bottom: var(--space-3);
+    /* True centring collides with the dock once its stacked buttons
+       push it into the same bottom-right corner on narrow screens, so
+       centre within the space the dock leaves instead of the full
+       viewport: inset from both edges rather than left:50% + transform. */
+    left: var(--space-3);
+    right: 128px;
+    transform: none;
+    width: fit-content;
+    max-width: none;
+    margin: 0 auto;
+    justify-content: center;
+    gap: var(--space-3);
+    padding: 7px var(--space-3);
+  }
+
+  .statValue {
+    font-size: 13px;
+  }
+
+  .statLabel {
+    font-size: 8px;
+    letter-spacing: 0.04em;
+  }
+}
+
+@media (max-width: 480px) {
+  .statLabel {
+    display: none;
+  }
+}

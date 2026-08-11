@@ -1,0 +1,487 @@
+/* The page scrolls: the globe gets a generous but bounded stage, and the
+   portal content sits beneath it. */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--app-bg);
+}
+
+/* Wraps SearchBar + SearchTabs in one continuous gradient (matched from
+   the canonical reference's `.commandDock`), instead of each row
+   painting its own slice of the masthead gradient — the two rows'
+   own backgrounds are transparent so this one paints the whole band.
+   That per-row-slice approach was also what produced a visible seam
+   where the tabs row met the workspace below it. */
+.commandDock {
+  position: relative;
+  z-index: 20;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 142, 202, 0.98),
+    rgba(0, 107, 152, 0.96)
+  );
+  border-bottom: 1px solid rgba(190, 228, 250, 0.24);
+  box-shadow: 0 12px 28px rgba(3, 22, 45, 0.2);
+}
+
+/* Deep blue workspace: the globe sits directly in it and the white
+   cards float on top, so the whole page reads as one surface. */
+.canvasBackdrop {
+  display: flex;
+  background:
+    radial-gradient(
+      ellipse 90% 70% at 78% 2%,
+      rgba(37, 111, 176, 0.35) 0%,
+      rgba(7, 44, 86, 0) 62%
+    ),
+    /* Straight vertical (180deg), matching SearchTabs.module.css's own
+       masthead-bottom -> workspace-top gradient directly above this
+       element. The two used to disagree (168deg here vs 180deg there),
+       so their shared edge only matched color at one x position instead
+       of across the full width — everywhere else showed as a visible
+       seam right where the tabs row ends and the workspace begins. */
+    linear-gradient(
+      180deg,
+      var(--workspace-top) 0%,
+      var(--workspace-mid) 46%,
+      var(--workspace-bottom) 100%
+    );
+}
+
+.main {
+  position: relative;
+  /* Tall enough for the globe to breathe under the masthead, capped so
+     the content below is always discoverable by scrolling. */
+  height: clamp(560px, 72vh, 820px);
+  display: flex;
+  padding: var(--space-5) var(--space-5) var(--space-5);
+  max-width: 1520px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* The filter panel floats over the stage rather than sitting in the
+   flow. That is what the design calls for, and it also removes the last
+   source of globe flicker: an in-flow panel resizes the canvas on every
+   frame of its open/close animation, and each resize reallocates the
+   WebGL drawing buffer and re-frames the camera. Floating it means the
+   canvas never changes size, so the globe simply does not move. */
+.sidebarSlot {
+  position: absolute;
+  top: var(--space-5);
+  left: var(--space-5);
+  bottom: var(--space-5);
+  width: var(--sidebar-width);
+  z-index: 8;
+  display: flex;
+  transform: translateX(0);
+  opacity: 1;
+  transition: transform 340ms var(--ease-out), opacity 220ms var(--ease-out);
+}
+
+.sidebarSlotClosed {
+  transform: translateX(calc(-100% - var(--space-6)));
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* In list view the panel must not cover the results, so the list is
+   inset instead. */
+.stageInset {
+  padding-left: calc(var(--sidebar-width) + var(--space-4));
+  transition: padding-left 340ms var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebarSlot,
+  .stageInset {
+    transition: none;
+  }
+}
+
+.stage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* No frame: the globe sits directly in the workspace. */
+.globeSlot {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: visible;
+}
+
+/* In list view there's no canvas to protect, so the card just sits in
+   the flow and the list shrinks around it. */
+.detailsSlot {
+  flex: 0 0 auto;
+  max-height: 46%;
+  min-height: 0;
+}
+
+/* In globe view the card floats over the bottom of the globe instead of
+   sitting in the flex flow. An in-flow card here would shrink
+   `.globeSlot` every time it opens/closes, resizing the WebGL canvas —
+   same class of bug `.sidebarSlot` was made absolute to avoid (see
+   comment above it): each resize reallocates the drawing buffer and
+   re-frames the camera, which reads as the globe jumping/flickering the
+   instant a dataset is selected. Floating it keeps the canvas size
+   constant. Clearance reuses the same dock-width values GlobeScene's
+   `.stats` capsule clears by (200px desktop / 128px narrow), since both
+   avoid the same right-hand control dock. */
+.detailsSlotFloating {
+  position: absolute;
+  left: var(--space-5);
+  right: calc(var(--space-5) + 200px);
+  bottom: calc(var(--space-5) + 58px);
+  z-index: 9;
+  max-height: 46%;
+}
+
+@media (max-width: 900px) {
+  .detailsSlotFloating {
+    right: calc(var(--space-3) + 200px);
+  }
+}
+
+@media (max-width: 720px) {
+  .detailsSlotFloating {
+    left: var(--space-3);
+    right: calc(var(--space-3) + 128px);
+    bottom: calc(var(--space-3) + 54px);
+  }
+}
+
+.listSlot {
+  flex: 1;
+  min-height: 0;
+}
+
+/* --------------------------- side toggles ------------------------ */
+
+/* An edge-mounted tab, not a floating pill: it sits flush against the
+   left edge of the workspace and only rounds on the side facing in, so
+   it reads as part of the globe stage rather than a card dropped on it. */
+.sidebarToggle {
+  position: absolute;
+  top: var(--space-6);
+  left: 0;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 var(--space-3) 0 var(--space-3);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  background: var(--scene-panel);
+  border: 1px solid var(--scene-border);
+  border-left: none;
+  box-shadow: 4px 8px 22px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(10px);
+  color: var(--scene-text);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: background var(--dur-fast) var(--ease-out),
+    padding-right var(--dur-fast) var(--ease-out);
+}
+
+.sidebarToggle:hover {
+  background: var(--scene-hover);
+  padding-right: calc(var(--space-3) + 3px);
+}
+
+.sidebarToggleLabel {
+  white-space: nowrap;
+}
+
+.filterCount {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--primary-light-blue);
+  color: var(--navy-charcoal);
+  font-size: 10px;
+  font-weight: 800;
+  display: inline-grid;
+  place-items: center;
+}
+
+/* --------------------------- empty state ------------------------- */
+
+.empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+  z-index: 4;
+  pointer-events: none;
+}
+
+.emptyCard {
+  pointer-events: auto;
+  width: min(360px, 100%);
+  padding: var(--space-6) var(--space-5);
+  text-align: center;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  animation: emptyIn var(--dur-med) var(--ease-out);
+}
+
+.emptyIcon {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto var(--space-3);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.emptyTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 5px;
+}
+
+.emptyText {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: var(--space-4);
+}
+
+.emptyButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.emptyButton:hover {
+  background: var(--accent-hover);
+}
+
+/* ---------------------------- fullscreen ------------------------- */
+
+.stageFullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  padding: var(--space-3);
+  background: var(--app-bg);
+  max-width: none;
+  margin: 0;
+}
+
+/* ----------------------------- toast ----------------------------- */
+
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-4);
+  transform: translateX(-50%);
+  z-index: 8;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  font-size: 12.5px;
+  color: var(--text);
+  animation: emptyIn var(--dur-med) var(--ease-out);
+}
+
+@keyframes emptyIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --------------------------- responsive -------------------------- */
+
+@media (max-width: 1080px) {
+  .main {
+    padding: var(--space-3);
+    gap: var(--space-3);
+  }
+}
+
+@media (max-width: 900px) {
+  .main {
+    padding: var(--space-2);
+  }
+}
+
+/* Below this width the sidebar becomes a drawer and the details card
+   becomes a bottom sheet. */
+@media (max-width: 720px) {
+  .detailsSlot {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: auto;
+    max-height: 52vh;
+    z-index: 70;
+  }
+
+  .toast {
+    bottom: 78px;
+  }
+}
+
+/* ------------------------- portal content ------------------------ *
+ * Everything below the globe. Scrolling past the stage reveals the
+ * portal's own introduction and headline figures.
+ * ----------------------------------------------------------------- */
+
+.below {
+  background: var(--app-bg);
+  padding: var(--space-8) var(--space-5) var(--space-8);
+}
+
+.belowInner {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.welcomeCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-8);
+}
+
+.welcomeTitle {
+  font-size: 27px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: var(--space-3);
+}
+
+.welcomeText {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  max-width: 74ch;
+}
+
+.welcomeText a {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--border);
+}
+
+.figure {
+  text-align: center;
+}
+
+.figureValue {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.figureLabel {
+  margin-top: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.repoStrip {
+  margin-top: var(--space-6);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: center;
+}
+
+.repoChip {
+  padding: 5px 13px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.footer {
+  max-width: 1100px;
+  margin: var(--space-6) auto 0;
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.footerLinks {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 760px) {
+  .below {
+    padding: var(--space-6) var(--space-3);
+  }
+
+  .welcomeCard {
+    padding: var(--space-5);
+  }
+
+  .welcomeTitle {
+    font-size: 22px;
+  }
+
+  .welcomeText {
+    font-size: 14px;
+  }
+}

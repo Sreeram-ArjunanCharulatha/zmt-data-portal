@@ -1,0 +1,106 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(7, 44, 78, 0.42);
+  animation: fadeIn var(--dur-med) var(--ease-out);
+}
+
+/* Same dark marine treatment as the floating desktop panel — the sheet
+   is the same panel, just docked full-height instead of floating. */
+.drawer {
+  --surface: var(--scene-panel-solid);
+  --surface-subtle: var(--scene-panel-subtle);
+  --border: var(--scene-border);
+  --text: var(--scene-text);
+  --text-secondary: var(--scene-text-muted);
+  --accent: var(--scene-accent);
+  --accent-hover: var(--scene-accent-hover);
+
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 91;
+  width: min(320px, 88vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--scene-panel-solid);
+  border-right: 1px solid var(--scene-border);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+  animation: slideIn var(--dur-slow) var(--ease-out);
+  color: var(--scene-text);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.close {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+}
+
+.close:hover {
+  background: var(--surface-subtle);
+  color: var(--text);
+}
+
+.content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.apply {
+  flex-shrink: 0;
+  padding: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.applyButton {
+  width: 100%;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.applyButton:hover {
+  background: var(--accent-hover);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}

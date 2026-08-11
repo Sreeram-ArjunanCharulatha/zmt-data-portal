@@ -1,0 +1,235 @@
+/* Search sits on the blue masthead as one wide white capsule holding the
+   magnifier, the field, the filter toggle and the submit button. */
+.section {
+  /* Paints nothing of its own — sits on the shared .commandDock
+     gradient in App.module.css, matching the reference exactly. */
+  background: transparent;
+  padding: 5px var(--space-5) 2px;
+}
+
+.inner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 1520px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+}
+
+.field {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 36px;
+  padding: 0 8px 0 var(--space-5);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border: 2px solid transparent;
+  box-shadow: 0 10px 30px rgba(3, 22, 45, 0.24);
+  transition: border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.fieldFocused {
+  border-color: #7cc4ec;
+  box-shadow: 0 10px 30px rgba(3, 22, 45, 0.28),
+    0 0 0 4px rgba(124, 196, 236, 0.28);
+}
+
+.searchIcon {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.input::placeholder {
+  color: var(--text-secondary);
+}
+
+.clear {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.clear:hover {
+  background: var(--surface-subtle);
+  color: var(--text);
+}
+
+.settingsButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 34px;
+  height: 28px;
+  padding: 0 11px;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.settingsButton span {
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.settingsButton:hover {
+  background: var(--surface-subtle);
+  color: var(--accent);
+}
+
+.settingsButtonActive {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.divider {
+  width: 1px;
+  height: 26px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.searchButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 20px;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(180deg, var(--primary-light-blue) 0%, var(--primary-blue) 100%);
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  box-shadow: 0 4px 14px rgba(10, 127, 194, 0.45);
+  transition: filter var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.searchButton:hover {
+  filter: brightness(1.08);
+}
+
+.searchButton:active {
+  transform: translateY(1px);
+}
+
+.shortcut {
+  display: none;
+}
+
+/* ------------------------- shortcuts strip ------------------------ */
+
+.shortcutsToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  margin-left: var(--space-3);
+  padding: 2px 4px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+  border-radius: var(--radius-sm);
+}
+
+.shortcutsToggle:hover {
+  color: #ffffff;
+}
+
+.caret {
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.caretOpen {
+  transform: rotate(90deg);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: var(--space-3);
+  animation: chipsIn var(--dur-med) var(--ease-out);
+}
+
+.chip {
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  color: #ffffff;
+  font-size: 12px;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.chip:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+@keyframes chipsIn {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 860px) {
+  .section {
+    padding: 0 var(--space-3) var(--space-3);
+  }
+
+  .field {
+    height: 40px;
+    padding-left: var(--space-4);
+    gap: var(--space-2);
+  }
+
+  .searchButton {
+    height: 32px;
+    padding: 0 16px;
+  }
+
+  .searchButton span {
+    display: none;
+  }
+
+  .settingsButton span {
+    display: none;
+  }
+}

@@ -1,0 +1,380 @@
+/* A dark translucent marine-blue panel, matching the dock/tooltip
+   language rather than a light-theme card. Every rule below the root
+   still reads `var(--surface)`, `var(--text)`, etc. — remapping those
+   four tokens here, scoped to `.sidebar`, restyles the whole panel (and
+   the mobile drawer, via `.embedded`) without duplicating each rule. */
+.sidebar {
+  --surface: var(--scene-panel-solid);
+  --surface-subtle: var(--scene-panel-subtle);
+  --border: var(--scene-border);
+  --border-strong: var(--scene-border-strong);
+  --text: var(--scene-text);
+  --text-secondary: var(--scene-text-muted);
+  --accent: var(--scene-accent);
+  --accent-soft: var(--scene-accent-soft);
+
+  display: flex;
+  flex-direction: column;
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+  background: rgba(13, 29, 48, 0.88);
+  backdrop-filter: blur(16px) saturate(1.1);
+  border: 1px solid var(--scene-border);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.42), 0 2px 10px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  height: 100%;
+  color: var(--scene-text);
+}
+
+/* Inside the mobile drawer the panel fills the sheet instead. */
+.embedded {
+  width: 100%;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  height: 100%;
+}
+
+.embedded .title {
+  display: none;
+}
+
+.embedded .header {
+  justify-content: flex-end;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.collapse {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  transition: background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.collapse:hover {
+  background: var(--surface-subtle);
+  color: var(--text);
+}
+
+.reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+  padding: 4px 2px;
+  border-radius: var(--radius-sm);
+}
+
+.reset:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.reset:disabled {
+  color: var(--text-secondary);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 var(--space-2);
+}
+
+.section {
+  border-bottom: 1px solid var(--border);
+}
+
+.section:last-of-type {
+  border-bottom: none;
+}
+
+/* Collapsed row: icon, label, count, chevron. */
+.sectionHeader {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 9px var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.sectionHeader:hover {
+  background: var(--surface-subtle);
+}
+
+.sectionIcon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--accent);
+  transition: background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.sectionHeader:hover .sectionIcon {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.sectionLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sectionMeta {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.selectedDot {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-grid;
+  place-items: center;
+}
+
+.chevron {
+  transition: transform var(--dur-med) var(--ease-out);
+  color: var(--text-secondary);
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.options {
+  padding: 0 var(--space-2) var(--space-3) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  animation: sectionIn var(--dur-med) var(--ease-out);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.option:hover {
+  background: var(--surface-subtle);
+}
+
+.checkbox {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.checkbox:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.checkbox:checked::after {
+  content: '';
+  width: 8px;
+  height: 4px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+
+.optionLabel {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optionCount {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.showMore {
+  margin: 4px var(--space-3) 0;
+  padding: 5px 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+  text-align: left;
+}
+
+.showMore:hover {
+  text-decoration: underline;
+}
+
+/* --------------------------- temporal ---------------------------- */
+
+.temporal {
+  padding: 0 var(--space-3) var(--space-4);
+  animation: sectionIn var(--dur-med) var(--ease-out);
+}
+
+.temporalRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.yearField {
+  flex: 1;
+  min-width: 0;
+}
+
+.yearLabel {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 3px;
+}
+
+.yearInput {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.yearInput:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.slider {
+  width: 100%;
+  margin-top: var(--space-3);
+  accent-color: var(--accent);
+}
+
+.temporalHint {
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+/* ---------------------------- results ---------------------------- */
+
+/* Sticky summary: always answers "how many am I looking at?" without
+   scrolling the panel. */
+.footer {
+  position: sticky;
+  bottom: 0;
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  padding: var(--space-4);
+  background: var(--surface);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.resultsLabel {
+  display: none;
+}
+
+.resultsLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.resultCount {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.05;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.resultSub {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+@keyframes sectionIn {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

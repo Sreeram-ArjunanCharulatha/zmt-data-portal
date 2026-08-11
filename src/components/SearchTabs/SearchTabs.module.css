@@ -1,0 +1,201 @@
+/* One segmented control on the masthead seam, rather than a card of
+   underlined tabs. */
+.bar {
+  /* Transparent — sits on the shared .commandDock gradient in
+     App.module.css, alongside SearchBar, matching the reference. */
+  background: transparent;
+  padding: 0 var(--space-5) 5px;
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  max-width: 1520px;
+  margin: 0 auto;
+  min-height: 30px;
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: rgba(20, 20, 20, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 var(--space-4);
+  height: 24px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.78);
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.tab:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.tabActive,
+.tabActive:hover {
+  background: #ffffff;
+  color: var(--primary-dark-blue);
+  font-weight: 650;
+  box-shadow: 0 2px 8px rgba(3, 22, 45, 0.28);
+}
+
+.count {
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 11px;
+  font-weight: 600;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabActive .count {
+  background: var(--accent-soft);
+  color: var(--primary-dark-blue);
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.viewToggle {
+  display: flex;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(20, 20, 20, 0.24);
+}
+
+.viewButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.78);
+  transition: background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.viewButton:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.viewButtonActive,
+.viewButtonActive:hover {
+  background: #ffffff;
+  color: var(--primary-dark-blue);
+  font-weight: 650;
+  box-shadow: 0 2px 8px rgba(3, 22, 45, 0.28);
+}
+
+.advanced {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  transition: border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.advanced svg:first-child {
+  color: var(--accent);
+}
+
+.advanced:hover {
+  border-color: var(--accent-soft-border);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+.advancedActive {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+.pill {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 700;
+  display: inline-grid;
+  place-items: center;
+}
+
+@media (max-width: 1080px) {
+  .bar {
+    padding: 0 var(--space-3);
+  }
+}
+
+@media (max-width: 720px) {
+  .inner {
+    height: 44px;
+    padding-right: var(--space-2);
+  }
+
+  .tab {
+    height: 38px;
+    padding: 0 var(--space-3);
+    font-size: 13.5px;
+  }
+
+  .viewButton span {
+    display: none;
+  }
+
+  .viewButton {
+    padding: 0 9px;
+  }
+
+  .advancedLabel {
+    display: none;
+  }
+
+  .advanced {
+    padding: 0 11px;
+  }
+}

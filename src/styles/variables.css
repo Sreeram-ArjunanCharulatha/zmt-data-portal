@@ -1,0 +1,131 @@
+/* ------------------------------------------------------------------ *
+ * Design tokens — blue & white scientific identity.
+ * Single fixed appearance (no dark mode).
+ * ------------------------------------------------------------------ */
+
+:root {
+  /* Brand — official ZMT identity: primary blue rgb(0,142,202), plus a
+     lighter sky-blue marine palette built around it for depth and accents. */
+  --primary-blue: #008eca;
+  --primary-dark-blue: #006b98;
+  /* The following four tokens are matched from the canonical
+     ZMT-Data-Portal-project reference (page chrome only — the globe
+     scene's own accent tokens stay under `--scene-*` below,
+     deliberately unchanged). */
+  --primary-light-blue: #81bfe5;
+  --cyan-highlight: #bee4fa;
+  --ocean-blue: #008eca;
+  --deep-background: #141414;
+  --navy-charcoal: #0b1e30;
+
+  /* Neutrals, matched from the canonical reference. */
+  --surface-white: #ffffff;
+  --soft-white: #f7f7f7;
+  --border-light: #b2b2b2;
+  --text-dark: #141414;
+  --text-muted: #626262;
+
+  /* Semantic (light appearance) */
+  --app-bg: var(--soft-white);
+  --surface: var(--surface-white);
+  --surface-subtle: var(--soft-white);
+  --surface-raised: var(--surface-white);
+  --border: var(--border-light);
+  --border-strong: #b2b2b2;
+  --text: var(--text-dark);
+  --text-secondary: var(--text-muted);
+  --text-inverse: #ffffff;
+  --accent: var(--primary-blue);
+  --accent-hover: var(--primary-dark-blue);
+  --accent-soft: #bee4fa;
+  --accent-soft-border: #81bfe5;
+  --header-bg: var(--primary-blue);
+  --header-bg-strong: var(--primary-dark-blue);
+  --scene-bg-outer: #1c6fa8;
+  --scene-bg-inner: #3f92c8;
+  --danger: #c2453c;
+  --success: #1d7a5f;
+
+  /* Masthead gradient (header -> search -> tabs read as one band),
+     matched from the canonical ZMT-Data-Portal-project reference: solid
+     primary blue through the header and search rows, only darkening at
+     the very bottom (tabs row) into --primary-dark-blue. */
+  --masthead-top: #008eca;
+  --masthead-mid: #008eca;
+  --masthead-bottom: #006b98;
+
+  /* The workspace behind the globe, matched from the canonical
+     ZMT-Data-Portal-project reference (src/styles/variables.css) — pale
+     sky blue at the top fading to a deeper teal-navy at the bottom.
+     Cards and the control dock float on it. */
+  --workspace-top: #9dcfe1;
+  --workspace-mid: #5797b5;
+  --workspace-bottom: #214e67;
+
+  /* On-globe surfaces — the navy control-panel language used for the
+     dock, stats capsule, tooltips, the datasets tab and (via the scoped
+     overrides in FilterSidebar/DatasetDetailsCard) every panel that
+     opens over the workspace, so they read as part of the globe scene
+     rather than bolted-on light-theme cards. */
+  --scene-panel: rgba(11, 24, 39, 0.78);
+  --scene-panel-solid: #0d1d30;
+  --scene-panel-subtle: #132a41;
+  --scene-border: rgba(150, 205, 232, 0.2);
+  --scene-border-strong: rgba(150, 205, 232, 0.36);
+  --scene-text: #eef6fb;
+  --scene-text-muted: #9fbdd2;
+  --scene-hover: rgba(111, 224, 240, 0.16);
+  --scene-accent: var(--primary-light-blue);
+  --scene-accent-hover: var(--cyan-highlight);
+  --scene-accent-soft: rgba(111, 224, 240, 0.14);
+  --scene-accent-soft-border: rgba(111, 224, 240, 0.32);
+
+  /* Elevation */
+  --shadow-xs: 0 1px 2px rgba(18, 48, 71, 0.06);
+  --shadow-sm: 0 1px 3px rgba(18, 48, 71, 0.08), 0 1px 2px rgba(18, 48, 71, 0.04);
+  --shadow-md: 0 4px 14px rgba(18, 48, 71, 0.1), 0 2px 4px rgba(18, 48, 71, 0.05);
+  --shadow-lg: 0 12px 32px rgba(7, 44, 78, 0.16), 0 4px 10px rgba(7, 44, 78, 0.08);
+  --focus-ring: 0 0 0 3px rgba(0, 142, 202, 0.4);
+
+  /* Geometry */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Layout metrics — consumed by the globe fitting logic too. */
+  --header-height: 46px;
+  --search-height: 51px;
+  --tabs-height: 34px;
+  --sidebar-width: 312px;
+  --details-height: 216px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 120ms;
+  --dur-med: 220ms;
+  --dur-slow: 360ms;
+
+  /* Type, matched from the canonical reference (`--font-wordmark` is left
+     alone — it's the globe's own token, out of scope here). */
+  --font-sans: 'ZMT Avenir', 'Avenir 55 Roman', Avenir, 'Avenir Next',
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  --font-heading: 'ZMT Rockwell', 'Rockwell Std', Rockwell, 'Roboto Slab',
+    Georgia, serif;
+  --font-wordmark: 'Avenir Heavy', 'Avenir Next Extra Bold', 'Avenir Next',
+    'Avenir', 'Century Gothic', 'Inter', -apple-system, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  color-scheme: light;
+}
