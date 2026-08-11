@@ -8,6 +8,14 @@ import type { NodeRegistration } from './SpriteNode';
 
 const REFERENCE_DISTANCE = 2.6;
 const DECLUTTER_INTERVAL = 0.14;
+/** Minimum time a sprite must hold its declutter state before it's
+ * allowed to flip again. The screen-space hysteresis below only guards
+ * against sub-pixel jitter at a *fixed* camera — during auto-rotate the
+ * globe is genuinely turning, so two markers sitting near the overlap
+ * threshold can drift across it and back on consecutive 140ms passes,
+ * which reads as a soft on/off flicker even though nothing is actually
+ * wrong. This cooldown stops a sprite from re-flipping within it. */
+const MIN_STATE_DWELL = 0.5;
 
 type GlobeNodesProps = {
   nodes: ClusterNode[];
@@ -63,6 +71,7 @@ export function GlobeNodes({
     camera: THREE.Camera,
     size: { width: number; height: number },
     delta: number,
+    elapsedTime: number,
   ) {
     declutterClock.current += delta;
     const nodesChanged = declutteredVersion.current !== registryVersion.current;
@@ -82,19 +91,20 @@ export function GlobeNodes({
 
     const kept: Array<{ x: number; y: number; r: number }> = [];
     for (const entry of byPriority) {
-      projected.current.copy(entry.sprite.position).project(camera);
+      const { sprite } = entry;
+      projected.current.copy(sprite.position).project(camera);
       const x = (projected.current.x * 0.5 + 0.5) * size.width;
       const y = (-projected.current.y * 0.5 + 0.5) * size.height;
       const r = entry.screenRadius;
+
+      const wasHidden = sprite.userData.declutterHidden === true;
 
       // Hysteresis: a sprite that was already visible needs a clearly
       // tighter overlap before it's hidden than a hidden one needs to
       // reappear. Without this, pairs sitting right at the overlap
       // threshold flicker in and out every pass from sub-pixel jitter
       // in the projected position alone.
-      const wasHidden = entry.sprite.userData.declutterHidden === true;
       const hysteresis = wasHidden ? 1 : 0.65;
-
       const overlapsKept = kept.some((other) => {
         const dx = x - other.x;
         const dy = y - other.y;
@@ -105,8 +115,16 @@ export function GlobeNodes({
         return dx * dx + dy * dy < minGap * minGap;
       });
 
-      entry.sprite.userData.declutterHidden = overlapsKept;
-      if (!overlapsKept) kept.push({ x, y, r });
+      const changedSincePass = overlapsKept !== wasHidden;
+      const lastChangedAt = (sprite.userData.declutterChangedAt as number) ?? -Infinity;
+      const tooSoonToFlip = elapsedTime - lastChangedAt < MIN_STATE_DWELL;
+      const isHidden = changedSincePass && tooSoonToFlip ? wasHidden : overlapsKept;
+
+      if (isHidden !== wasHidden) {
+        sprite.userData.declutterChangedAt = elapsedTime;
+      }
+      sprite.userData.declutterHidden = isHidden;
+      if (!isHidden) kept.push({ x, y, r });
     }
   }
 
@@ -193,7 +211,7 @@ export function GlobeNodes({
     const entries = [...registry.current.values()];
     const cameraDistance = camera.position.length();
 
-    updateDeclutter(entries, camera, size, delta);
+    updateDeclutter(entries, camera, size, delta, state.clock.elapsedTime);
     for (const entry of entries) {
       updateNodeAppearance(entry, camera, size, cameraDistance, delta, state.clock.elapsedTime);
     }
