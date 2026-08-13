@@ -42,7 +42,7 @@ export function Header({ bookmarkCount }: HeaderProps) {
     <header className={styles.header}>
       <a className={styles.brand} href="#main" aria-label="ZMT Data Portal home">
         <span className={styles.logo} aria-hidden="true">
-          <img src="/zmt-logo.svg" alt="" width={28} height={28} />
+          <img src="/zmt-logo.jpg" alt="" width={28} height={28} />
         </span>
         <span className={styles.brandText}>
           <span className={styles.brandName}>ZMT</span>
