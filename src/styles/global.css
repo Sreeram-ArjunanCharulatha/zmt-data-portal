@@ -195,15 +195,18 @@ svg {
   filter: blur(16px);
   background: radial-gradient(
     240px circle at var(--glow-x, 50%) var(--glow-y, 50%),
-    var(--glow-color, rgba(255, 255, 255, 0.4)) 0%,
-    var(--glow-color, rgba(255, 255, 255, 0.4)) 18%,
+    var(--glow-color, rgba(255, 255, 255, 0.18)) 0%,
+    var(--glow-color, rgba(255, 255, 255, 0.18)) 18%,
     transparent 68%
   );
   transition: opacity 260ms var(--ease-out);
 }
 
 .glow:hover::before {
-  opacity: 1;
+  /* Not 1 — even a fairly pale --glow-color read as too bright once
+     blurred and laid over an already-bright workspace gradient. This
+     caps it at a sheen rather than a spotlight. */
+  opacity: 0.55;
 }
 
 .glow > * {
