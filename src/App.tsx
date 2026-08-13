@@ -18,6 +18,7 @@ import { DatasetList } from './components/DatasetList/DatasetList';
 import { MobileFilterDrawer } from './components/MobileFilterDrawer/MobileFilterDrawer';
 import { ClusterPanel } from './components/ClusterPanel/ClusterPanel';
 import { AnimatedCounter } from './components/AnimatedCounter/AnimatedCounter';
+import { usePointerGlow } from './hooks/usePointerGlow';
 import {
   EMPTY_FILTERS,
   countActiveFilters,
@@ -72,6 +73,10 @@ export default function App() {
   const reducedMotion = useReducedMotion();
   const isCompact = useMediaQuery('(max-width: 1080px)');
   const cameraHandle = useGlobeCamera();
+  // Cursor-follow glow across the blue workspace behind the globe — see
+  // usePointerGlow for why this is plain CSS custom properties rather
+  // than React state or a GSAP tween.
+  const workspaceGlowRef = usePointerGlow<HTMLDivElement>();
 
   /* --------------------------- derived data -------------------------- */
   const { results, facets, datasetTotal, tabCounts } = useDatasetFilters(
@@ -300,7 +305,7 @@ export default function App() {
         />
       </div>
 
-      <div className={styles.canvasBackdrop}>
+      <div ref={workspaceGlowRef} className={`${styles.canvasBackdrop} glow`}>
         <main className={styles.main} id="main">
           {/* Kept mounted on wide viewports so collapsing animates. */}
           {!isCompact && !fullscreen && (

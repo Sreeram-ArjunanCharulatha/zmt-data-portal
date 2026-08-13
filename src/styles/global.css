@@ -165,10 +165,17 @@ svg {
    plain `glow` class alongside any component's own module classes. The
    ::before layer costs nothing while the pointer is elsewhere — opacity
    0 means the browser doesn't even need to paint the gradient — and
-   `prefers-reduced-motion` above already kills the fade transition. */
+   `prefers-reduced-motion` above already kills the fade transition.
+   Deliberately no `overflow: hidden` here: the ::before is `inset: 0`,
+   so it never paints outside its own element regardless of overflow —
+   that property only matters for clipping a gradient to a *rounded*
+   shape. Plain rectangular surfaces (the workspace behind the globe,
+   the header) don't need it, and forcing it on by default risks
+   clipping an unrelated child's box-shadow that happens to extend past
+   the container's padding. Add `overflow: hidden` yourself on whichever
+   specific element needs the clip (see SearchBar's `.field`). */
 .glow {
   position: relative;
-  overflow: hidden;
 }
 
 .glow::before {

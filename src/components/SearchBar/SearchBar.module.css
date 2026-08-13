@@ -39,6 +39,12 @@
   /* The .glow utility defaults to a white spotlight, invisible on this
      field's own white background — tint it toward the brand blue. */
   --glow-color: rgba(0, 142, 202, 0.14);
+  /* Clips the glow gradient to this pill's rounded corners — the .glow
+     utility itself no longer forces this globally (see global.css), so
+     it's opt-in here where the shape actually calls for it. The field's
+     own box-shadow above is unaffected: overflow only clips content
+     painted *inside* the box, never an element's own outer shadow. */
+  overflow: hidden;
 }
 
 .fieldFocused {
