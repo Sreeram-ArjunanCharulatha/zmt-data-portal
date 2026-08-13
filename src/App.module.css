@@ -181,11 +181,16 @@
   height: 40px;
   padding: 0 var(--space-3) 0 var(--space-3);
   border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
-  background: var(--scene-panel);
+  /* Solid, not the translucent --scene-panel: this corner is also where
+     the giant "ZMT" wordmark's stroke starts (it's sized edge-to-edge,
+     so the "Z" necessarily begins near the left edge too), and a
+     translucent-plus-blurred background let that pale stroke bleed
+     through behind the tab — reading as the tab visually colliding
+     with the letter instead of sitting cleanly above it. */
+  background: var(--scene-panel-solid);
   border: 1px solid var(--scene-border);
   border-left: none;
   box-shadow: 4px 8px 22px rgba(0, 0, 0, 0.38);
-  backdrop-filter: blur(10px);
   color: var(--scene-text);
   font-size: 12.5px;
   font-weight: 600;
