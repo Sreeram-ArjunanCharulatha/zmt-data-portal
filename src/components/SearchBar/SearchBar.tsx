@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ChevronRight, Search, SlidersHorizontal, X } from 'lucide-react';
+import { usePointerGlow } from '../../hooks/usePointerGlow';
 import styles from './SearchBar.module.css';
 
 type SearchBarProps = {
@@ -28,6 +29,7 @@ export function SearchBar({
   const [focused, setFocused] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const glowRef = usePointerGlow<HTMLDivElement>();
 
   /* "/" focuses search, Escape blurs it — standard for search-first apps. */
   useEffect(() => {
@@ -55,7 +57,10 @@ export function SearchBar({
     <section className={styles.section} aria-label="Dataset search">
       <form className={styles.inner} role="search" onSubmit={submit}>
         <div className={styles.row}>
-          <div className={`${styles.field} ${focused ? styles.fieldFocused : ''}`}>
+          <div
+            ref={glowRef}
+            className={`${styles.field} glow ${focused ? styles.fieldFocused : ''}`}
+          >
             <Search size={21} className={styles.searchIcon} aria-hidden="true" />
             <input
               ref={inputRef}

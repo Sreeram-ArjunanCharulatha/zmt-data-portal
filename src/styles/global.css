@@ -159,3 +159,38 @@ svg {
     scroll-behavior: auto !important;
   }
 }
+
+/* Pointer-follow glow spotlight. Pair with `usePointerGlow` (which sets
+   `--glow-x`/`--glow-y` on the element as the cursor moves) and add the
+   plain `glow` class alongside any component's own module classes. The
+   ::before layer costs nothing while the pointer is elsewhere — opacity
+   0 means the browser doesn't even need to paint the gradient — and
+   `prefers-reduced-motion` above already kills the fade transition. */
+.glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.glow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    220px circle at var(--glow-x, 50%) var(--glow-y, 50%),
+    var(--glow-color, rgba(255, 255, 255, 0.35)),
+    transparent 70%
+  );
+  transition: opacity 200ms var(--ease-out);
+}
+
+.glow:hover::before {
+  opacity: 1;
+}
+
+.glow > * {
+  position: relative;
+  z-index: 1;
+}

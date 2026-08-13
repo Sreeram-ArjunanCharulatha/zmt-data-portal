@@ -17,6 +17,7 @@ import { DatasetDetailsCard } from './components/DatasetDetailsCard/DatasetDetai
 import { DatasetList } from './components/DatasetList/DatasetList';
 import { MobileFilterDrawer } from './components/MobileFilterDrawer/MobileFilterDrawer';
 import { ClusterPanel } from './components/ClusterPanel/ClusterPanel';
+import { AnimatedCounter } from './components/AnimatedCounter/AnimatedCounter';
 import {
   EMPTY_FILTERS,
   countActiveFilters,
@@ -487,27 +488,35 @@ export default function App() {
 
             <div className={styles.figures}>
               <div className={styles.figure}>
-                <div className={styles.figureValue}>
-                  {numberFormat.format(portalFigures.datasets)}
-                </div>
+                <AnimatedCounter
+                  className={styles.figureValue}
+                  value={portalFigures.datasets}
+                  formatter={numberFormat}
+                />
                 <div className={styles.figureLabel}>All datasets</div>
               </div>
               <div className={styles.figure}>
-                <div className={styles.figureValue}>
-                  {numberFormat.format(portalFigures.repositories)}
-                </div>
+                <AnimatedCounter
+                  className={styles.figureValue}
+                  value={portalFigures.repositories}
+                  formatter={numberFormat}
+                />
                 <div className={styles.figureLabel}>Repositories</div>
               </div>
               <div className={styles.figure}>
-                <div className={styles.figureValue}>
-                  {numberFormat.format(portalFigures.countries)}
-                </div>
+                <AnimatedCounter
+                  className={styles.figureValue}
+                  value={portalFigures.countries}
+                  formatter={numberFormat}
+                />
                 <div className={styles.figureLabel}>Countries</div>
               </div>
               <div className={styles.figure}>
-                <div className={styles.figureValue}>
-                  {numberFormat.format(portalFigures.locations)}
-                </div>
+                <AnimatedCounter
+                  className={styles.figureValue}
+                  value={portalFigures.locations}
+                  formatter={numberFormat}
+                />
                 <div className={styles.figureLabel}>Locations</div>
               </div>
             </div>

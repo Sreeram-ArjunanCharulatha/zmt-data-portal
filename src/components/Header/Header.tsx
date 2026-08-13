@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Bookmark,
   ChevronDown,
@@ -7,6 +7,7 @@ import {
   Settings,
   User,
 } from 'lucide-react';
+import { usePointerGlow } from '../../hooks/usePointerGlow';
 import styles from './Header.module.css';
 
 type HeaderProps = {
@@ -21,6 +22,31 @@ const NAV_ITEMS = [
   { id: 'faq', label: 'FAQ' },
   { id: 'about', label: 'About' },
 ] as const;
+
+type NavButtonProps = {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+};
+
+/** One nav item, with its own pointer-follow glow — `usePointerGlow`
+ * needs to run per-button, so this is a separate component rather than
+ * the hook being called inside the `NAV_ITEMS.map` loop. */
+function NavButton({ active, onClick, children }: NavButtonProps) {
+  const glowRef = usePointerGlow<HTMLButtonElement>();
+
+  return (
+    <button
+      ref={glowRef}
+      type="button"
+      className={`${styles.navItem} glow ${active ? styles.navItemActive : ''}`}
+      aria-current={active ? 'page' : undefined}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
 
 export function Header({ bookmarkCount }: HeaderProps) {
   const [active, setActive] = useState<string>('discover');
@@ -59,20 +85,16 @@ export function Header({ bookmarkCount }: HeaderProps) {
 
       <nav className={styles.nav} aria-label="Primary">
         {NAV_ITEMS.map((item) => (
-          <button
+          <NavButton
             key={item.id}
-            type="button"
-            className={`${styles.navItem} ${
-              active === item.id ? styles.navItemActive : ''
-            }`}
-            aria-current={active === item.id ? 'page' : undefined}
+            active={active === item.id}
             onClick={() => setActive(item.id)}
           >
             {item.label}
             {'badge' in item && item.badge && (
               <span className={styles.badge}>{bookmarkCount}</span>
             )}
-          </button>
+          </NavButton>
         ))}
       </nav>
 

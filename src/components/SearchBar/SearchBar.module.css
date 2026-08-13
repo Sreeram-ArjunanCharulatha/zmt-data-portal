@@ -36,6 +36,9 @@
   box-shadow: 0 10px 30px rgba(3, 22, 45, 0.24);
   transition: border-color var(--dur-fast) var(--ease-out),
     box-shadow var(--dur-fast) var(--ease-out);
+  /* The .glow utility defaults to a white spotlight, invisible on this
+     field's own white background — tint it toward the brand blue. */
+  --glow-color: rgba(0, 142, 202, 0.14);
 }
 
 .fieldFocused {
