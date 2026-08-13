@@ -104,7 +104,21 @@ export function Earth({
     photoMaterial.opacity = eased;
     drawnMaterial.opacity = 1 - eased;
 
-    if (fade.current >= 1) setPlaceholderDone(true);
+    if (fade.current >= 1) {
+      /* Only needs to be in the transparent render bucket while it's
+         actually fading in. Left transparent permanently, it stays
+         there alongside the (also-transparent) cloud sphere forever —
+         and since both spheres share the same centre, three.js's
+         transparent-object sort (back-to-front by distance from camera)
+         has no real distance to sort by and can order them either way.
+         Draw the photo sphere after the clouds and it paints straight
+         over them, near-opaque, hiding them completely. Opaque
+         rendering doesn't have this ambiguity: it depth-tests per pixel
+         instead of sorting whole objects, so the closer cloud sphere
+         always wins on the near hemisphere regardless of draw order. */
+      photoMaterial.transparent = false;
+      setPlaceholderDone(true);
+    }
   });
 
   const usingPhoto = photo !== null;
