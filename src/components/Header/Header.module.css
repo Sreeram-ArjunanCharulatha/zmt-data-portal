@@ -33,9 +33,19 @@
   height: 28px;
   display: grid;
   place-items: center;
-  border-radius: 9px;
-  background: linear-gradient(145deg, #3da5e8, #1877c4);
+  border-radius: 50%;
+  /* The logo mark (public/zmt-logo.svg) is a self-contained circular
+     badge with its own white fill, so this wrapper no longer paints a
+     background of its own — a second shape behind it just competed with
+     the mark's own circle. The shadow stays, lifting the badge off the
+     blue header the same way the old gradient tile did. */
   box-shadow: 0 4px 14px rgba(4, 30, 60, 0.4);
+}
+
+.logo img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
 }
 
 .brandText {
@@ -270,7 +280,7 @@
   .logo {
     width: 30px;
     height: 30px;
-    border-radius: 9px;
+    border-radius: 50%;
   }
 
   .brandName {

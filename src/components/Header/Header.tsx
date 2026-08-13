@@ -1,12 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  Bookmark,
-  ChevronDown,
-  Globe2,
-  LogOut,
-  Settings,
-  User,
-} from 'lucide-react';
+import { Bookmark, ChevronDown, LogOut, Settings, User } from 'lucide-react';
 import styles from './Header.module.css';
 
 type HeaderProps = {
@@ -49,7 +42,7 @@ export function Header({ bookmarkCount }: HeaderProps) {
     <header className={styles.header}>
       <a className={styles.brand} href="#main" aria-label="ZMT Data Portal home">
         <span className={styles.logo} aria-hidden="true">
-          <Globe2 size={22} strokeWidth={2.1} />
+          <img src="/zmt-logo.svg" alt="" width={28} height={28} />
         </span>
         <span className={styles.brandText}>
           <span className={styles.brandName}>ZMT</span>
