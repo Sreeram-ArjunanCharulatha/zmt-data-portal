@@ -6,6 +6,8 @@ import type { ClusterNode, DatasetLocation } from '../../types/dataset';
 import type { GlobeCameraHandle } from '../../hooks/useGlobeCamera';
 import { disposeGeneratedTextures } from '../../utils/earthTexture';
 import { vector3ToLatLon } from '../../utils/geoCoordinates';
+import { angularDistanceDeg } from '../../utils/geoMath';
+import { MIN_CAMERA_DISTANCE } from '../../utils/clustering';
 import { Atmosphere } from './Atmosphere';
 import { CameraRig, type CameraFocus } from './CameraRig';
 import { CountryBorders } from './CountryBorders';
@@ -72,11 +74,39 @@ export default function GlobeScene({
       const distance = cameraHandle.apiRef.current?.getDistance() ?? 2.6;
 
       if (node.isCluster) {
-        /* Two things at once: fly towards the group (which lowers the
-           zoom level and re-splits it) and list its members, so the
-           badge's number is immediately accountable. */
+        /* Two things at once: fly towards the group and list its
+           members, so the badge's number is immediately accountable.
+           The zoom-in distance used to be a flat 0.74x of wherever the
+           camera already was, regardless of how tightly the cluster's
+           own members are grouped — for a widely spread cluster that
+           routinely overshot into a much closer zoom level, shattering
+           it into a scatter of small sub-clusters while the panel kept
+           showing the original (now stale-looking) total. Capping the
+           zoom to how far the members actually spread means a tight
+           cluster still zooms in the full 0.74x, but a loose one stops
+           at a distance that comfortably frames it without needlessly
+           crossing another clustering threshold. */
+        const spreadDeg = node.members.reduce(
+          (max, member) =>
+            Math.max(
+              max,
+              angularDistanceDeg(
+                node.latitude,
+                node.longitude,
+                member.latitude,
+                member.longitude,
+              ),
+            ),
+          0,
+        );
+        const spreadDistance = MIN_CAMERA_DISTANCE * 1.1 + (spreadDeg / 45) * 1.3;
+        const targetDistance = Math.max(
+          MIN_CAMERA_DISTANCE * 1.05,
+          Math.min(distance * 0.74, spreadDistance),
+        );
+
         onSelectCluster(node);
-        cameraHandle.flyTo(node.latitude, node.longitude, distance * 0.74);
+        cameraHandle.flyTo(node.latitude, node.longitude, targetDistance);
         return;
       }
 
