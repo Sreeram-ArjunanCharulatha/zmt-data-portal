@@ -1,4 +1,4 @@
-import { Globe2, List } from 'lucide-react';
+import { Globe, List } from 'lucide-react';
 import type { SearchTab, ViewMode } from '../../types/dataset';
 import styles from './SearchTabs.module.css';
 
@@ -59,7 +59,7 @@ export function SearchTabs({
               onClick={() => onViewModeChange('globe')}
               title="Globe view"
             >
-              <Globe2 size={15} aria-hidden="true" />
+              <Globe size={15} aria-hidden="true" />
               <span>Globe</span>
             </button>
             <button
