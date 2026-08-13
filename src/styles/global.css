@@ -185,12 +185,21 @@ svg {
   z-index: 0;
   pointer-events: none;
   opacity: 0;
+  /* A soft-edged blob rather than a crisp disc — the blur is most of
+     what reads as "liquid": a hard-edged circle looks mechanical no
+     matter how it's positioned, but a diffused, slightly-oversized glow
+     that trails the cursor (see usePointerGlow's eased follow) reads as
+     something with actual weight and viscosity. The extra stop at 18%
+     keeps a solid core before the falloff starts, instead of fading
+     from the very centre. */
+  filter: blur(16px);
   background: radial-gradient(
-    220px circle at var(--glow-x, 50%) var(--glow-y, 50%),
-    var(--glow-color, rgba(255, 255, 255, 0.35)),
-    transparent 70%
+    240px circle at var(--glow-x, 50%) var(--glow-y, 50%),
+    var(--glow-color, rgba(255, 255, 255, 0.4)) 0%,
+    var(--glow-color, rgba(255, 255, 255, 0.4)) 18%,
+    transparent 68%
   );
-  transition: opacity 200ms var(--ease-out);
+  transition: opacity 260ms var(--ease-out);
 }
 
 .glow:hover::before {
