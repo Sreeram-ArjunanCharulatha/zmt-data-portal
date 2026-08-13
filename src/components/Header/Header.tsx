@@ -86,9 +86,9 @@ export function Header({ bookmarkCount }: HeaderProps) {
             aria-haspopup="menu"
           >
             <span className={styles.avatar} aria-hidden="true">
-              LM
+              SC
             </span>
-            <span className={styles.userName}>L. Morgan</span>
+            <span className={styles.userName}>sree.charulatha</span>
             <ChevronDown size={15} aria-hidden="true" />
             <span className="srOnly">Account menu</span>
           </button>
@@ -96,8 +96,8 @@ export function Header({ bookmarkCount }: HeaderProps) {
           {menuOpen && (
             <div className={styles.menu} role="menu">
               <div className={styles.menuHeader}>
-                <div className={styles.menuName}>Lena Morgan</div>
-                <div className={styles.menuEmail}>l.morgan@leibniz-zmt.de</div>
+                <div className={styles.menuName}>sree.charulatha</div>
+                <div className={styles.menuEmail}>sree.charulatha@leibniz-zmt.de</div>
               </div>
               <button type="button" className={styles.menuItem} role="menuitem">
                 <User size={15} aria-hidden="true" />
