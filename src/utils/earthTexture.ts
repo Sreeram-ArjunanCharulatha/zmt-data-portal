@@ -219,7 +219,16 @@ export function createEarthTexture(style: DrawnStyle): THREE.Texture {
     land.ctx.stroke();
   });
 
+  /* The generalised coastline data is low-vertex-count (kept small on
+     purpose, since this whole texture is a fallback), which reads as
+     visibly faceted/jagged at the zoom levels this globe is viewed at —
+     a giveaway that it's a placeholder rather than a "smaller but real"
+     coastline. A soft blur on the composite rounds those facets into
+     something closer to a natural coastline without redrawing the
+     underlying geometry at higher resolution. */
+  ctx.filter = 'blur(3px)';
   ctx.drawImage(land.canvas, 0, 0);
+  ctx.filter = 'none';
 
   /* --- Inland seas ------------------------------------------------ */
   ctx.fillStyle = palette.oceanShallow;
