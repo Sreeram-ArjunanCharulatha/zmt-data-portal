@@ -48,19 +48,13 @@ export function Earth({
     [],
   );
 
-  /* Unlit, like the photo material below — the placeholder used to be a
-     *lit* MeshStandardMaterial, which picked up the scene's strong
-     camera-following key light as a glossy specular highlight and a
-     dark shadowed limb. That read as a cheap, plasticky "cartoon globe"
-     next to the flat, clean photo texture it's standing in for, and the
-     mismatch was obvious for however long the placeholder stayed on
-     screen. Flat unlit colour is what actually matches. */
   const drawnMaterial = useMemo(
     () =>
-      new THREE.MeshBasicMaterial({
+      new THREE.MeshStandardMaterial({
         map: drawnEarth,
+        roughness: 0.92,
+        metalness: 0.02,
         transparent: true,
-        toneMapped: false,
       }),
     [drawnEarth],
   );
@@ -166,12 +160,12 @@ export function Earth({
               toneMapped={false}
             />
           ) : (
-            <meshBasicMaterial
+            <meshStandardMaterial
               map={drawnClouds}
               transparent
               opacity={0.32}
               depthWrite={false}
-              toneMapped={false}
+              roughness={1}
             />
           )}
         </mesh>
