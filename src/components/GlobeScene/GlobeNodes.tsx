@@ -92,6 +92,20 @@ export function GlobeNodes({
     const kept: Array<{ x: number; y: number; r: number }> = [];
     for (const entry of byPriority) {
       const { sprite } = entry;
+
+      /* Skip anything behind the horizon. Sprites on the far side of the
+         globe still project to a screen position — often right on top of
+         a front-facing one — so without this they claimed screen space
+         and suppressed markers the user can actually see. Because the
+         priority sort runs biggest-first, a large cluster hidden round
+         the back would silently hide a smaller visible neighbour, and as
+         the globe auto-rotated those back-side sprites swept through and
+         knocked out front markers for a second or two at a time. */
+      if (sprite.position.dot(camera.position) - 1 <= 0) {
+        sprite.userData.declutterHidden = false;
+        continue;
+      }
+
       projected.current.copy(sprite.position).project(camera);
       const x = (projected.current.x * 0.5 + 0.5) * size.width;
       const y = (-projected.current.y * 0.5 + 0.5) * size.height;

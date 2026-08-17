@@ -27,6 +27,19 @@ import { HALO_RADIUS } from './Atmosphere';
    reach the viewport edge and start being clipped again. */
 const FIT_MARGIN = HALO_RADIUS * 1.06;
 
+/* Target diameter of the globe as a fraction of the *viewport* height.
+   This is the one knob for how large the globe reads — raise it to grow
+   the sphere in both the windowed and fullscreen views at once. Because
+   it is measured against the viewport rather than the canvas, the two
+   views come out the same size on screen. */
+const GLOBE_VIEWPORT_FRACTION = 0.55;
+
+/** Canvas-size change (as a fraction of the previous size) above which a
+ *  resize is treated as a discrete layout switch rather than a frame of
+ *  an animation. Fullscreen toggles land far above this; a filter panel
+ *  sliding open steps well below it. */
+const LARGE_RESIZE_FRACTION = 0.15;
+
 /** The margin this file's zoom clamps were originally tuned against. */
 const LEGACY_FIT_MARGIN = 1.14;
 /** Cancels FIT_MARGIN out of the zoom clamps — see their use below. */
@@ -50,12 +63,16 @@ function easeInOutCubic(t: number): number {
  * OrbitControls completes one orbit in 60 / autoRotateSpeed seconds.
  * ------------------------------------------------------------------ */
 const SIDEREAL_DAY_SECONDS = 86164;
-/** 1 second on screen ≈ 24 minutes of Earth rotation (one turn ≈ 1 min).
- *  Doubled from 720: a two-minute revolution was slow enough that the
- *  globe read as static in a glance, which undersells that it is live
- *  and draggable. This is the one knob for rotation speed — raise it to
- *  go faster. */
-const TIME_COMPRESSION = 1440;
+/** 1 second on screen ≈ 12 minutes of Earth rotation (one turn ≈ 2 min).
+ *  The single knob for rotation speed — raise it to go faster.
+ *
+ *  One rate for both views, deliberately. There used to be a separate
+ *  fullscreen multiplier because the globe rendered much larger there,
+ *  so the same angular rate swept the surface past faster. Now that
+ *  GLOBE_VIEWPORT_FRACTION makes the sphere the same on-screen size in
+ *  both, equal angular speed *is* equal apparent speed, and a second
+ *  constant would only be a way for the two to drift apart again. */
+const TIME_COMPRESSION = 720;
 const AUTO_ROTATE_SPEED = 60 / (SIDEREAL_DAY_SECONDS / TIME_COMPRESSION);
 
 export type CameraFocus = {
@@ -101,6 +118,9 @@ export function CameraRig({
   /** Distance the camera should ease to after a layout change. */
   const pendingFitRef = useRef<number | null>(null);
   const hasFittedRef = useRef(false);
+  /** Last canvas size seen, to tell a fullscreen toggle (one big jump)
+   *  from a panel animation (many small steps). */
+  const previousSizeRef = useRef({ width: 0, height: 0 });
   const zoomLevelRef = useRef(-1);
   const animRef = useRef({
     active: false,
@@ -123,26 +143,52 @@ export function CameraRig({
     const vFov = (perspective.fov * Math.PI) / 180;
     const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect);
 
+    /* The floor: the distance at which the halo still fits the canvas on
+       both axes. The camera is never allowed closer than this, whatever
+       the size target below asks for, so the globe cannot be clipped. */
     const distanceForVertical = FIT_MARGIN / Math.sin(vFov / 2);
     const distanceForHorizontal = FIT_MARGIN / Math.sin(hFov / 2);
-    const fit = Math.max(distanceForVertical, distanceForHorizontal);
+    const distanceThatFits = Math.max(distanceForVertical, distanceForHorizontal);
+
+    /* Size the globe against the *viewport*, not the canvas.
+       A canvas-relative fraction gives the globe the same share of
+       whatever box it is in — but fullscreen's canvas is roughly a
+       quarter taller than the windowed stage, so the same fraction came
+       out visibly bigger there. Solving for a target diameter in real
+       pixels makes the two views match on screen, which is what "the
+       same size" actually means to someone looking at it.
+
+       Inverts the projection: a sphere of radius 1 at distance d has
+       apparent angular radius asin(1/d), which lands at
+       tan(asin(1/d)) / tan(vFov/2) of the half-viewport. */
+    const viewportHeight =
+      document.documentElement.clientHeight || size.height;
+    const targetRadiusPx = (viewportHeight * GLOBE_VIEWPORT_FRACTION) / 2;
+    const halfCanvasPx = Math.max(1, size.height / 2);
+    const tanAngular =
+      (targetRadiusPx / halfCanvasPx) * Math.tan(vFov / 2);
+    const distanceForTarget = 1 / Math.sin(Math.atan(tanAngular));
+
+    /* Farther of the two: the target normally wins, and the fit floor
+       takes over only where it would otherwise crop (short or narrow
+       viewports). */
+    const fit = Math.max(distanceThatFits, distanceForTarget);
 
     fitRef.current = fit;
 
     const controls = controlsRef.current;
     if (controls) {
-      /* Both clamps are expressed against the framing distance, so they
-         have to be re-based whenever FIT_MARGIN changes or the reachable
-         zoom range would silently move with it. `ZOOM_RANGE_REBASE`
-         cancels the margin out, keeping the closest and furthest
-         distances exactly where they were before the margin was widened
-         to stop the halo being cropped — App.tsx's CLOSE_UP_DISTANCE
-         (1.72) in particular has to stay reachable, and it sits just
-         under what an un-rebased `fit * 0.48` would now clamp to. */
-      controls.minDistance = Math.max(
-        MIN_CAMERA_DISTANCE,
-        fit * 0.48 * ZOOM_RANGE_REBASE,
-      );
+      /* Closest zoom is pinned to MIN_CAMERA_DISTANCE rather than scaled
+         off the framing distance. It used to be `fit * 0.48`, which made
+         the reachable zoom drift every time the framing changed — and
+         now that `fit` differs between the windowed and fullscreen views
+         it would differ per view too, with fullscreen's larger value
+         clamping App.tsx's CLOSE_UP_DISTANCE (1.72) and quietly making
+         "open a dataset" settle farther out there than in the window.
+         MIN_CAMERA_DISTANCE is the documented floor and is stable. */
+      controls.minDistance = MIN_CAMERA_DISTANCE;
+      /* Furthest stays framing-relative — how far out you may pull back
+         genuinely should depend on how the globe is framed. */
       controls.maxDistance = fit * 1.35 * ZOOM_RANGE_REBASE;
     }
 
@@ -157,15 +203,35 @@ export function CameraRig({
       controls?.maxDistance ?? fit * 1.35,
     );
 
-    if (hasFittedRef.current) {
-      /* Hand the new distance to the frame loop to ease into. Applying
-         it here would snap the camera, and a resize is not one event —
-         collapsing the filter panel fires dozens as the width animates,
-         so snapping each time reads as the globe flickering. */
-      pendingFitRef.current = clamped;
-    } else {
+    /* How much the canvas just changed, relative to its previous size. */
+    const previous = previousSizeRef.current;
+    const relativeChange = Math.max(
+      Math.abs(size.width - previous.width) / Math.max(1, previous.width),
+      Math.abs(size.height - previous.height) / Math.max(1, previous.height),
+    );
+    previousSizeRef.current = { width: size.width, height: size.height };
+
+    if (!hasFittedRef.current) {
       perspective.position.setLength(clamped);
       hasFittedRef.current = true;
+    } else if (relativeChange > LARGE_RESIZE_FRACTION) {
+      /* One big jump — entering or leaving fullscreen. Here the camera
+         move is *compensating* for the canvas resize (the globe is sized
+         against the viewport, so a taller canvas needs a longer lens to
+         keep the sphere the same size on screen), which means the two
+         have to land on the same frame. Easing into it let the canvas
+         resize instantly while the camera caught up over the next few
+         hundred ms, and that lag is exactly the jump-then-settle stutter
+         seen when toggling fullscreen. */
+      perspective.position.setLength(clamped);
+      pendingFitRef.current = null;
+      zoomRatioRef.current = clamped / fit;
+    } else {
+      /* Small, incremental change. Hand it to the frame loop to ease
+         into: a resize like this is not one event — collapsing the
+         filter panel fires dozens as the width animates, so snapping
+         each time reads as the globe flickering. */
+      pendingFitRef.current = clamped;
     }
 
     perspective.updateProjectionMatrix();

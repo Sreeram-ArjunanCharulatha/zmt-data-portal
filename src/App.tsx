@@ -359,8 +359,11 @@ export default function App() {
                 </GlobeErrorBoundary>
 
                 {/* Only offered when the filter column is not already on
-                    screen — an edge-mounted tab, not a floating handle. */}
-                {!showSidebarColumn && (
+                    screen — an edge-mounted tab, not a floating handle.
+                    Hidden in fullscreen: that view is the undecorated
+                    globe in space, and the filter panel it opens is not
+                    reachable there anyway. */}
+                {!showSidebarColumn && !fullscreen && (
                   <button
                     type="button"
                     className={styles.sidebarToggle}
