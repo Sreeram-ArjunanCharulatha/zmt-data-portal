@@ -30,12 +30,21 @@ export function useFitWordmark(
       here reproduces the old overflow/clipping bug at a smaller scale:
       the real render comes out wider than what was measured. */
   letterSpacingEm = 0,
+  /** Nudges the mark horizontally, as a fraction of the container's
+      width (negative = left). Clamped to whatever slack `widthFraction`
+      actually leaves, so a shift can never push the mark under
+      `.wordmark`'s `overflow: hidden` and clip a letter — ask for more
+      room by lowering `widthFraction`, not by over-shifting. */
+  shiftFraction = 0,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [fontSize, setFontSize] = useState<number | null>(null);
   /* In `em` of the element's own font-size, so it scales automatically
      with `fontSize` above without a second unit conversion. */
   const [centerOffsetEm, setCenterOffsetEm] = useState(0);
+  /* One `em` offset per character, evening out the optical gaps between
+     them — see `solveLetterOffsetsEm`. */
+  const [letterOffsetsEm, setLetterOffsetsEm] = useState<number[]>([]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -52,8 +61,13 @@ export function useFitWordmark(
       ctx.font = `${fontWeight} ${MEASURE_FONT_SIZE}px ${fontFamily}`;
       const metrics = ctx.measureText(text);
 
-      setFontSize(solveFontSize(metrics, width, height, widthFraction, maxHeightFraction, letterSpacingEm, text.length));
-      setCenterOffsetEm(solveCenterOffsetEm(metrics));
+      const size = solveFontSize(metrics, width, height, widthFraction, maxHeightFraction, letterSpacingEm, text.length);
+      setFontSize(size);
+      setCenterOffsetEm(
+        solveCenterOffsetEm(metrics, letterSpacingEm) +
+          solveShiftEm(metrics, width, size, letterSpacingEm, text.length, shiftFraction),
+      );
+      setLetterOffsetsEm(solveLetterOffsetsEm(ctx, text, letterSpacingEm));
     };
 
     measure();
@@ -68,9 +82,10 @@ export function useFitWordmark(
     widthFraction,
     maxHeightFraction,
     letterSpacingEm,
+    shiftFraction,
   ]);
 
-  return { containerRef, fontSize, centerOffsetEm };
+  return { containerRef, fontSize, centerOffsetEm, letterOffsetsEm };
 }
 
 /** `.width` is the type-setting *advance* — it includes whatever blank
@@ -89,6 +104,22 @@ function inkWidthOf(metrics: TextMetrics): number {
   return metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight || 1;
 }
 
+/** Height of the rendered glyphs at `MEASURE_FONT_SIZE`, for the same
+ * reason `inkWidthOf` exists: a font-size is not a height. Cap height
+ * for a bold geometric sans runs ~0.7em and the full line box ~1.3em,
+ * so the two differ by nearly a factor of two. Falls back to a typical
+ * cap-height ratio where bounding-box metrics aren't supported. */
+const FALLBACK_CAP_HEIGHT_RATIO = 0.72;
+
+function inkHeightOf(metrics: TextMetrics): number {
+  const ascent = metrics.actualBoundingBoxAscent;
+  const descent = metrics.actualBoundingBoxDescent;
+  if (typeof ascent !== 'number' || typeof descent !== 'number') {
+    return MEASURE_FONT_SIZE * FALLBACK_CAP_HEIGHT_RATIO;
+  }
+  return ascent + descent || MEASURE_FONT_SIZE * FALLBACK_CAP_HEIGHT_RATIO;
+}
+
 function solveFontSize(
   metrics: TextMetrics,
   containerWidth: number,
@@ -105,7 +136,15 @@ function solveFontSize(
   const totalWidth = inkWidthOf(metrics) + gapCount * letterSpacingEm * MEASURE_FONT_SIZE;
 
   const sizeForWidth = (containerWidth * widthFraction * MEASURE_FONT_SIZE) / totalWidth;
-  const sizeForHeight = containerHeight * maxHeightFraction;
+  /* Solve against the glyphs' real ink height, exactly as the width arm
+     solves against their real ink width. The old form was
+     `containerHeight * maxHeightFraction`, which conflated font-size
+     with rendered height: at maxHeightFraction 0.82 it picked a
+     font-size of 0.82 * container, whose line box then rendered at
+     ~1.06 * container — so the cap that exists to prevent clipping was
+     itself the thing overflowing the wrapper and getting clipped. */
+  const sizeForHeight =
+    (containerHeight * maxHeightFraction * MEASURE_FONT_SIZE) / inkHeightOf(metrics);
   return Math.max(1, Math.min(sizeForWidth, sizeForHeight));
 }
 
@@ -117,11 +156,115 @@ function solveFontSize(
  * itself is dead-centre. This solves for how far off-centre the ink's
  * own midpoint sits, in `em` so it can be applied as a CSS
  * `translateX` alongside the solved font-size. */
-function solveCenterOffsetEm(metrics: TextMetrics): number {
+/** Converts `shiftFraction` into an `em` offset, clamped to the real
+ * slack left over once the mark is laid out at `fontSize`. Measuring the
+ * slack rather than trusting `widthFraction` matters because the height
+ * arm of `solveFontSize` can win, in which case the mark is narrower
+ * than `widthFraction` asked for and there is *more* room to move than
+ * expected — and conversely a `widthFraction` of 1 leaves none at all. */
+function solveShiftEm(
+  metrics: TextMetrics,
+  containerWidth: number,
+  fontSize: number,
+  letterSpacingEm: number,
+  charCount: number,
+  shiftFraction: number,
+): number {
+  if (!shiftFraction || fontSize <= 0) return 0;
+
+  const gapCount = Math.max(0, charCount - 1);
+  const inkAtReference =
+    inkWidthOf(metrics) + gapCount * letterSpacingEm * MEASURE_FONT_SIZE;
+  const inkWidth = (inkAtReference * fontSize) / MEASURE_FONT_SIZE;
+
+  const slack = Math.max(0, (containerWidth - inkWidth) / 2);
+  const wanted = shiftFraction * containerWidth;
+  const clamped = Math.max(-slack, Math.min(slack, wanted));
+  return clamped / fontSize;
+}
+
+/** Per-character `em` offsets that even out the *optical* gaps between
+ * glyphs.
+ *
+ * `letter-spacing` is uniform, but the whitespace the eye actually sees
+ * between two letters is the gap between their **ink**, and that varies
+ * per pair with the glyphs' own side bearings: against this mark's font
+ * "ZM" renders a markedly wider gap than "MT" at the same spacing, which
+ * reads as the "M" sitting too close to the "T".
+ *
+ * Each gap is measured, the mean is taken as the target, and every
+ * character is nudged by the running correction needed to hit it. The
+ * corrections sum to zero at the final character, so the first and last
+ * glyphs never move — the mark's total ink width, and therefore the
+ * fitting and centring solved elsewhere in this file, are unaffected.
+ *
+ * Measured rather than hardcoded because the numbers are font-specific,
+ * and the resolved font differs per machine (Avenir Next, Century
+ * Gothic, Inter) — the same reason the size itself is measured.
+ */
+function solveLetterOffsetsEm(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  letterSpacingEm: number,
+): number[] {
+  const chars = [...text];
+  if (chars.length < 3) return chars.map(() => 0);
+
+  const first = ctx.measureText(chars[0]);
+  if (typeof first.actualBoundingBoxLeft !== 'number') {
+    return chars.map(() => 0);
+  }
+
+  const spacing = letterSpacingEm * MEASURE_FONT_SIZE;
+
+  /* Pen position of each glyph. Derived from the width of the prefix
+     *ending* at that glyph minus the glyph's own advance, so any kerning
+     the font applies within the run is included rather than assumed
+     away by summing advances. */
+  const origins = chars.map((char, i) => {
+    if (i === 0) return 0;
+    const prefix = ctx.measureText(text.slice(0, i + 1)).width;
+    return prefix - ctx.measureText(char).width + spacing * i;
+  });
+
+  const gaps: number[] = [];
+  for (let i = 0; i < chars.length - 1; i += 1) {
+    const leftInkEnd =
+      origins[i] + ctx.measureText(chars[i]).actualBoundingBoxRight;
+    const rightInkStart =
+      origins[i + 1] - ctx.measureText(chars[i + 1]).actualBoundingBoxLeft;
+    gaps.push(rightInkStart - leftInkEnd);
+  }
+
+  const target = gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length;
+
+  const offsets = [0];
+  for (let i = 0; i < gaps.length; i += 1) {
+    offsets.push(offsets[i] + (target - gaps[i]));
+  }
+  return offsets.map((offset) => offset / MEASURE_FONT_SIZE);
+}
+
+function solveCenterOffsetEm(
+  metrics: TextMetrics,
+  letterSpacingEm: number,
+): number {
   const hasInkBounds = typeof metrics.actualBoundingBoxLeft === 'number';
   if (!hasInkBounds || metrics.width <= 0) return 0;
 
   const inkMidpoint = (metrics.actualBoundingBoxRight - metrics.actualBoundingBoxLeft) / 2;
   const boxMidpoint = metrics.width / 2;
-  return (boxMidpoint - inkMidpoint) / MEASURE_FONT_SIZE;
+  const bearingCorrection = (boxMidpoint - inkMidpoint) / MEASURE_FONT_SIZE;
+
+  /* CSS applies `letter-spacing` after *every* character, the last one
+     included, so the advance box carries a trailing gap that has no
+     glyph after it. `justify-content: center` centres that box, which
+     displaces the visible ink by half the trailing gap — with the
+     negative spacing this mark uses, that pushed the letters right by
+     ~35px, leaving a visibly wider margin before the "Z" than after the
+     "T". Half the gap cancels it exactly.
+     (`solveFontSize` is right to use `charCount - 1` gaps: it measures
+     the ink run, not the advance box. The two differ by precisely this
+     one trailing gap.) */
+  return bearingCorrection + letterSpacingEm / 2;
 }

@@ -16,7 +16,20 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--border);
+  /* Fades out at both ends instead of a hard full-width border — the
+     toolbar spans the whole list, so a solid rule here read as a slab
+     divider rather than a heading underline. */
+  border-bottom: 0;
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--border) 12%,
+    var(--border) 88%,
+    transparent 100%
+  );
+  background-size: 100% 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
   flex-shrink: 0;
 }
 

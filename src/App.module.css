@@ -17,47 +17,114 @@
 .commandDock {
   position: relative;
   z-index: 20;
+  /* Fully opaque, and ending on the exact colour `.canvasBackdrop`
+     begins with, so the masthead hands off to the workspace without a
+     step. The old rule ended on a translucent blue that composited
+     against the near-white page background, which is why its bottom
+     edge never quite matched whatever was painted below it. */
   background: linear-gradient(
     180deg,
-    rgba(0, 142, 202, 0.98),
-    rgba(0, 107, 152, 0.96)
+    var(--masthead-top) 0%,
+    var(--masthead-bottom) 100%
   );
-  border-bottom: 1px solid rgba(190, 228, 250, 0.24);
-  box-shadow: 0 12px 28px rgba(3, 22, 45, 0.2);
+  /* No border and no drop shadow: both drew an explicit line across the
+     full width, which is what made the masthead read as a separate
+     stacked block rather than the top of one continuous environment.
+     The gradient handoff below does the separating instead. */
 }
 
 /* Deep blue workspace: the globe sits directly in it and the white
    cards float on top, so the whole page reads as one surface. */
 .canvasBackdrop {
+  position: relative;
   display: flex;
   background:
+    radial-gradient(
+      ellipse 60% 55% at 8% 96%,
+      rgba(129, 191, 229, 0.22) 0%,
+      rgba(7, 44, 86, 0) 65%
+    ),
     radial-gradient(
       ellipse 90% 70% at 78% 2%,
       rgba(37, 111, 176, 0.35) 0%,
       rgba(7, 44, 86, 0) 62%
     ),
-    /* Straight vertical (180deg), matching SearchTabs.module.css's own
-       masthead-bottom -> workspace-top gradient directly above this
-       element. The two used to disagree (168deg here vs 180deg there),
-       so their shared edge only matched color at one x position instead
-       of across the full width — everywhere else showed as a visible
-       seam right where the tabs row ends and the workspace begins. */
+    /* Straight vertical (180deg), and — crucially — starting on the
+       masthead's own bottom colour rather than jumping straight to the
+       pale `--workspace-top`. Those two are far apart (#006b98 vs
+       #9dcfe1), so butting them together put a hard light/dark reversal
+       exactly on the tabs-row edge: the single most visible "stacked
+       rectangles" seam on the page. Ramping out of the masthead colour
+       over the first fifth instead reads as one continuous sky that
+       opens up behind the globe, then deepens to the ocean navy. */
     linear-gradient(
       180deg,
-      var(--workspace-top) 0%,
-      var(--workspace-mid) 46%,
+      var(--masthead-bottom) 0%,
+      #2c7ba6 4%,
+      #6aa8c8 11%,
+      var(--workspace-top) 21%,
+      var(--workspace-mid) 58%,
       var(--workspace-bottom) 100%
+    );
+}
+
+/* Soft vignette pulling focus back toward the globe at the centre —
+   without it the far left/right thirds of a wide viewport read as flat,
+   empty gradient either side of the sphere. Confined to the left/right
+   edges only (never the top/bottom) — a full ellipse also darkened the
+   top strip, breaking the seam that's carefully colour-matched against
+   SearchTabs' own masthead-bottom -> workspace-top gradient above it. */
+.canvasBackdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    /* Convergence layer, listed first so it paints over the decorative
+       glows below it. The workspace hands off to `.below`, whose own
+       gradient starts on `--workspace-bottom` — but the bottom-left
+       glow lightens these last rows, so the two sides of that boundary
+       no longer matched and the difference read as a drawn line. This
+       eases whatever the decorative layers produced back to exactly
+       `--workspace-bottom` by the final row, making the handoff colour
+       identical on both sides regardless of what is layered above. */
+    linear-gradient(
+      180deg,
+      transparent 84%,
+      var(--workspace-bottom) 100%
+    ),
+    radial-gradient(
+      ellipse 32% 60% at 0% 50%,
+      rgba(6, 27, 48, 0.22) 0%,
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse 32% 60% at 100% 50%,
+      rgba(6, 27, 48, 0.22) 0%,
+      transparent 100%
     );
 }
 
 .main {
   position: relative;
   /* Tall enough for the globe to breathe under the masthead, capped so
-     the content below is always discoverable by scrolling. */
-  height: clamp(560px, 72vh, 820px);
+     the content below is always discoverable by scrolling. Full-bleed
+     width (no max-width) — a centered, capped-width stage used to leave
+     the (vignetted) workspace background visible as a framing box on
+     either side on wide viewports, reading as a hard-edged "cut" rather
+     than the globe sitting directly in the page. */
+  height: clamp(560px, 78vh, 900px);
   display: flex;
-  padding: var(--space-5) var(--space-5) var(--space-5);
-  max-width: 1520px;
+  /* Minimal top padding and none at the bottom: the workspace gradient
+     already separates the tabs row from the globe, so insets here only
+     opened empty strips that made the stage look like a panel embedded
+     below the controls rather than a continuation of them. The bottom
+     one was also visible as a hairline — the canvas draws the starfield
+     and atmosphere, so the padding strip below it was bare gradient
+     against subtly-lit gradient, and that boundary read as a drawn line
+     across the full width. Floating panels carry their own insets, so
+     nothing here depends on this padding for breathing room. */
+  padding: var(--space-2) var(--space-5) 0;
   width: 100%;
   margin: 0 auto;
 }
@@ -163,6 +230,10 @@
 .listSlot {
   flex: 1;
   min-height: 0;
+  /* `.main` deliberately has no bottom padding (it caused a hairline
+     seam under the globe canvas), but the list is real content and
+     still needs to clear the section edge. */
+  padding-bottom: var(--space-5);
 }
 
 /* --------------------------- side toggles ------------------------ */
@@ -188,9 +259,11 @@
      through behind the tab — reading as the tab visually colliding
      with the letter instead of sitting cleanly above it. */
   background: var(--scene-panel-solid);
-  border: 1px solid var(--scene-border);
+  border: 1px solid rgba(150, 205, 232, 0.14);
   border-left: none;
-  box-shadow: 4px 8px 22px rgba(0, 0, 0, 0.38);
+  /* Was `4px 8px 22px rgba(0,0,0,0.38)` — a heavy cast shadow that made
+     this small tab compete with the globe behind it. */
+  box-shadow: var(--scene-shadow-sm);
   color: var(--scene-text);
   font-size: 12.5px;
   font-weight: 600;
@@ -294,9 +367,37 @@
   inset: 0;
   z-index: 80;
   padding: var(--space-3);
-  background: var(--app-bg);
+  /* Deep space rather than the page's own near-white `--app-bg`.
+     The scene already renders a starfield and clears the canvas to
+     transparent, so whatever this paints *is* the sky — against the
+     light page background the stars were simply invisible. Not flat
+     black: a faint blue lift behind the globe keeps some depth and
+     stops the edges reading as a dead rectangle. */
+  background:
+    radial-gradient(
+      ellipse 65% 65% at 50% 48%,
+      #0b1a2e 0%,
+      #050c17 55%,
+      #01030a 100%
+    ),
+    #01030a;
   max-width: none;
   margin: 0;
+}
+
+/* Lifts the whole workspace above the masthead while the globe is
+   fullscreen.
+   `.stageFullscreen`'s own `z-index: 80` is not enough on its own: the
+   `.glow` utility sets `z-index: 1` on its direct children (global.css,
+   `.glow > *`), so `.main` establishes a stacking context and every
+   z-index inside it — 80 included — is resolved *within* that layer.
+   Against the header's `z-index: 60` in the root context, the whole
+   workspace therefore lost, and the masthead painted over the top of
+   the globe: the sphere stayed centred in its canvas but the visible
+   area was cropped from above, which read as it sitting too low.
+   Raising the ancestor is what actually escapes that trap. */
+.canvasBackdropFullscreen {
+  z-index: 90;
 }
 
 /* ----------------------------- toast ----------------------------- */
@@ -330,22 +431,32 @@
 
 /* --------------------------- responsive -------------------------- */
 
+/* These keep the zero bottom padding of the base rule — see the note
+   there: any strip below the canvas shows up as a hairline seam. */
 @media (max-width: 1080px) {
   .main {
-    padding: var(--space-3);
+    padding: var(--space-3) var(--space-3) 0;
     gap: var(--space-3);
   }
 }
 
 @media (max-width: 900px) {
   .main {
-    padding: var(--space-2);
+    padding: var(--space-2) var(--space-2) 0;
   }
 }
 
 /* Below this width the sidebar becomes a drawer and the details card
    becomes a bottom sheet. */
 @media (max-width: 720px) {
+  /* On a tall narrow viewport the globe is framed by *width*, so the
+     desktop stage height left a deep empty band above and below it.
+     A shorter stage keeps the globe exactly as large while closing that
+     gap — and brings the portal content below within reach sooner. */
+  .main {
+    height: clamp(420px, 62vh, 640px);
+  }
+
   .detailsSlot {
     position: fixed;
     left: 0;
@@ -366,9 +477,28 @@
  * portal's own introduction and headline figures.
  * ----------------------------------------------------------------- */
 
+/* Deliberately the calm counterpart to the workspace above: a light
+   neutral ground, thin grey rules and almost no shadow. The page is
+   meant to read as "immersive exploration above -> structured
+   reference below", and carrying the glass/gradient treatment down
+   here flattened that contrast — everything looked equally atmospheric
+   and nothing felt like settled information. The narrow tinted band at
+   the very top is the only carry-over, easing the deep workspace into
+   the light section so the handoff still has no hard edge. */
 .below {
-  background: var(--app-bg);
-  padding: var(--space-8) var(--space-5) var(--space-8);
+  position: relative;
+  isolation: isolate;
+  background:
+    linear-gradient(
+      180deg,
+      var(--workspace-bottom) 0%,
+      rgba(33, 78, 103, 0.55) 26%,
+      rgba(226, 234, 238, 0.9) 78%,
+      var(--soft-white) 100%
+    )
+    no-repeat top center / 100% 132px,
+    var(--soft-white);
+  padding: calc(var(--space-8) + var(--space-8)) var(--space-5) var(--space-8);
 }
 
 .belowInner {
@@ -377,10 +507,10 @@
 }
 
 .welcomeCard {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--surface-white);
+  border: 1px solid #e3e7ea;
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
   padding: var(--space-8);
 }
 
@@ -388,14 +518,14 @@
   font-size: 27px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: var(--text);
+  color: var(--text-dark);
   margin-bottom: var(--space-3);
 }
 
 .welcomeText {
   font-size: 15px;
   line-height: 1.65;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   max-width: 74ch;
 }
 
@@ -410,7 +540,20 @@
   gap: var(--space-4);
   margin-top: var(--space-8);
   padding-top: var(--space-6);
-  border-top: 1px solid var(--border);
+  /* A rule that fades out at both ends rather than a hard border, so it
+     separates the figures from the intro text without drawing a line
+     that runs edge to edge across the card. */
+  border-top: 0;
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(20, 20, 20, 0.13) 22%,
+    rgba(20, 20, 20, 0.13) 78%,
+    transparent 100%
+  );
+  background-size: 100% 1px;
+  background-position: 0 0;
+  background-repeat: no-repeat;
 }
 
 .figure {
@@ -432,7 +575,7 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: var(--text-muted);
 }
 
 .repoStrip {
@@ -446,25 +589,38 @@
 .repoChip {
   padding: 5px 13px;
   border-radius: var(--radius-pill);
-  background: var(--surface-subtle);
-  border: 1px solid var(--border);
+  background: var(--soft-white);
+  border: 1px solid #e3e7ea;
   font-size: 12.5px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-muted);
 }
 
 .footer {
   max-width: 1100px;
   margin: var(--space-6) auto 0;
   padding-top: var(--space-5);
-  border-top: 1px solid var(--border);
+  /* Fades out at both ends — see `.figures`. Recoloured for the light
+     section: the old cyan-on-dark rule and text were tuned for the
+     photo backdrop this area used to have. */
+  border-top: 0;
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(20, 20, 20, 0.12) 20%,
+    rgba(20, 20, 20, 0.12) 80%,
+    transparent 100%
+  );
+  background-size: 100% 1px;
+  background-position: 0 0;
+  background-repeat: no-repeat;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
   flex-wrap: wrap;
   font-size: 12.5px;
-  color: var(--text-secondary);
+  color: var(--text-muted);
 }
 
 .footerLinks {

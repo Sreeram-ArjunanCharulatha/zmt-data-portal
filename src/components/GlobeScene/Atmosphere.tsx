@@ -17,8 +17,11 @@ import { GLOBE_RADIUS } from '../../utils/geoCoordinates';
  * edge anywhere.
  * ------------------------------------------------------------------ */
 
-/** Outer extent of the halo, in globe radii. Tight on purpose. */
-const HALO_RADIUS = 1.19;
+/** Outer extent of the halo, in globe radii. Tight on purpose.
+ *  Exported because CameraRig's framing margin is derived from it — the
+ *  camera has to fit the halo, not just the sphere, or the glow gets
+ *  cropped at the viewport edge. */
+export const HALO_RADIUS = 1.19;
 
 export function Atmosphere() {
   const geometry = useMemo(
@@ -32,7 +35,10 @@ export function Atmosphere() {
         uniforms: {
           uInner: { value: new THREE.Color('#8ec4e8') },
           uOuter: { value: new THREE.Color('#2a6a9e') },
-          uIntensity: { value: 0.42 },
+          /* Restrained on purpose: at 0.42 this read as a lit rim from a
+             sci-fi HUD rather than atmospheric scattering. Low enough to
+             be depth cueing, not a light source. */
+          uIntensity: { value: 0.3 },
           uGlobeRadius: { value: GLOBE_RADIUS },
           uHaloRadius: { value: GLOBE_RADIUS * HALO_RADIUS },
         },

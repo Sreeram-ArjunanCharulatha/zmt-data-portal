@@ -327,7 +327,7 @@ export function createNodeSprite(options: {
    * A tight bloom hugging the body only — kept well short of where the
    * echo rings start, so the two read as separate layers instead of
    * one soft blur. */
-  const bloomRadius = bodyRadius * (selected ? 1.75 : 1.55);
+  const bloomRadius = bodyRadius * (selected ? 1.55 : 1.36);
   const bloom = ctx.createRadialGradient(c, c, bodyRadius * 0.6, c, c, bloomRadius);
   bloom.addColorStop(0, ring);
   bloom.addColorStop(1, 'rgba(111, 224, 240, 0)');
@@ -348,7 +348,11 @@ export function createNodeSprite(options: {
   for (let i = 0; i < ringCount; i += 1) {
     const radius = ringStart + ringGap * i;
     const t = ringCount > 1 ? i / (ringCount - 1) : 0;
-    const baseAlpha = selected ? 0.62 : 0.46;
+    /* Dialled back from 0.62/0.46. The rings still read as layered
+       sonar echoes, but at the previous alpha a globe full of markers
+       added up to an overall cyan haze — the single biggest contributor
+       to the interface reading as a game HUD rather than a chart. */
+    const baseAlpha = selected ? 0.46 : 0.3;
     ctx.strokeStyle = `rgba(111, 224, 240, ${(baseAlpha * (1 - t * 0.78)).toFixed(3)})`;
     ctx.lineWidth = size * (selected ? 0.011 : 0.0085);
     ctx.beginPath();

@@ -23,8 +23,8 @@
   gap: 2px;
   padding: 3px;
   border-radius: var(--radius-pill);
-  background: rgba(20, 20, 20, 0.24);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(6, 40, 62, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
@@ -59,7 +59,10 @@
   background: #ffffff;
   color: var(--primary-dark-blue);
   font-weight: 650;
-  box-shadow: 0 2px 8px rgba(3, 22, 45, 0.28);
+  /* The white fill against the blue band is already an unmistakable
+     selected state; the drop shadow just added visual noise at this
+     size. */
+  box-shadow: none;
 }
 
 .count {
@@ -116,7 +119,10 @@
   background: #ffffff;
   color: var(--primary-dark-blue);
   font-weight: 650;
-  box-shadow: 0 2px 8px rgba(3, 22, 45, 0.28);
+  /* The white fill against the blue band is already an unmistakable
+     selected state; the drop shadow just added visual noise at this
+     size. */
+  box-shadow: none;
 }
 
 .advanced {

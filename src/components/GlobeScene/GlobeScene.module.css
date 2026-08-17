@@ -24,6 +24,25 @@
   user-select: none;
 }
 
+/* The bottom-fade overlay that used to live here is gone. It existed to
+   hide the wordmark being clipped by `.wordmark`'s `overflow: hidden`,
+   but that clipping was a bug in useFitWordmark's height solve (it
+   capped *font-size* rather than rendered ink height, so the mark came
+   out ~106% of its container). With the solve fixed the mark always
+   lands inside its box, and the overlay was actively harmful: it
+   painted a solid `--workspace-bottom` band inset from the section edge
+   by `.main`'s padding, which read as its own faint horizontal line
+   against the surrounding gradient. */
+
+/* Fullscreen hides the mark. `visibility` rather than `display: none`
+   so the element keeps its box and `useFitWordmark`'s ResizeObserver
+   still fires — with `display: none` the container measures 0x0, the
+   hook bails on the zero-size guard, and the mark comes back at
+   whatever size it last held before fullscreen. */
+.wordmarkHidden {
+  visibility: hidden;
+}
+
 .wordmarkText {
   font-family: var(--font-wordmark);
   font-weight: 700;
@@ -51,9 +70,12 @@
      the original 0.5 spec value — even blended, full weight at 0.5 read
      as too dominant against the workspace, competing with the globe
      instead of sitting quietly behind it. */
-  opacity: 0.2;
+  /* Dropped again, from 0.2 (~30% less). The mark is branding, not
+     content: the globe has to be the first thing the eye lands on, and
+     at 0.2 the letterforms still competed with it. */
+  opacity: 0.14;
   mix-blend-mode: soft-light;
-  text-shadow: 0 18px 58px rgba(2, 27, 48, 0.18);
+  text-shadow: 0 18px 58px rgba(2, 27, 48, 0.14);
   white-space: nowrap;
 }
 
@@ -63,7 +85,11 @@
   width: 100%;
   height: 100%;
   display: block;
-  touch-action: none; /* let OrbitControls own touch gestures */
+  /* NB: `touch-action` deliberately is not set here. R3F writes
+     `touch-action: none` as an *inline* style on this same element, and
+     inline beats the stylesheet — a rule here looks like it applies but
+     is silently overridden. It's passed through the <Canvas> `style`
+     prop in GlobeScene.tsx instead; see the comment there. */
 }
 
 .loading {
@@ -189,11 +215,14 @@
   display: flex;
   align-items: stretch;
   gap: var(--space-4);
-  padding: 8px var(--space-4);
+  padding: 7px var(--space-4);
   border-radius: var(--radius-pill);
-  background: rgba(3, 20, 32, 0.86);
-  border: 1px solid rgba(190, 228, 250, 0.22);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  /* Lighter ground and a softer edge than the control dock — this is a
+     status line to skim, and it sits over the globe, so it should
+     recede rather than assert itself as a second toolbar. */
+  background: rgba(3, 20, 32, 0.7);
+  border: 1px solid rgba(190, 228, 250, 0.14);
+  box-shadow: var(--scene-shadow-sm);
   backdrop-filter: blur(12px) saturate(1.1);
   /* Clearance is sized to the control dock's own footprint (it only
      encroaches from the right), not the sidebar — the old formula
@@ -231,11 +260,14 @@
 }
 
 .statLabel {
-  font-size: 9px;
+  /* Was 9px — below the point where an uppercase, letter-spaced label
+     stays comfortably readable. The figures carry the emphasis, so the
+     label can afford a little more size at lower contrast. */
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: rgba(190, 222, 236, 0.7);
+  color: rgba(190, 222, 236, 0.62);
 }
 
 @media (max-width: 720px) {

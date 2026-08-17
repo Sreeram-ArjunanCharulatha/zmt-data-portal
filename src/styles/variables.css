@@ -80,18 +80,31 @@
   --scene-accent-soft: rgba(111, 224, 240, 0.14);
   --scene-accent-soft-border: rgba(111, 224, 240, 0.32);
 
-  /* Elevation */
-  --shadow-xs: 0 1px 2px rgba(18, 48, 71, 0.06);
-  --shadow-sm: 0 1px 3px rgba(18, 48, 71, 0.08), 0 1px 2px rgba(18, 48, 71, 0.04);
-  --shadow-md: 0 4px 14px rgba(18, 48, 71, 0.1), 0 2px 4px rgba(18, 48, 71, 0.05);
-  --shadow-lg: 0 12px 32px rgba(7, 44, 78, 0.16), 0 4px 10px rgba(7, 44, 78, 0.08);
-  --focus-ring: 0 0 0 3px rgba(0, 142, 202, 0.4);
+  /* Elevation — one restrained ramp. Kept low-contrast and tight on
+     purpose: components should read as gently layered, not floating.
+     Anything that needs to look lifted uses the next step up rather
+     than inventing its own stronger shadow. */
+  --shadow-xs: 0 1px 2px rgba(18, 48, 71, 0.05);
+  --shadow-sm: 0 1px 2px rgba(18, 48, 71, 0.06), 0 1px 1px rgba(18, 48, 71, 0.03);
+  --shadow-md: 0 3px 10px rgba(18, 48, 71, 0.08), 0 1px 3px rgba(18, 48, 71, 0.04);
+  --shadow-lg: 0 8px 24px rgba(7, 44, 78, 0.1), 0 2px 6px rgba(7, 44, 78, 0.05);
+  --focus-ring: 0 0 0 3px rgba(0, 142, 202, 0.28);
 
-  /* Geometry */
+  /* Shadows for panels floating over the globe. Darker ground than the
+     page-level ramp above (they sit on the deep workspace, not white),
+     but deliberately the same restrained shape — these used to be
+     one-off `0 12px 32px rgba(0,0,0,0.4)` values per component, which
+     read as heavy drop shadows rather than quiet elevation. */
+  --scene-shadow-sm: 0 2px 8px rgba(2, 14, 26, 0.24);
+  --scene-shadow-md: 0 6px 18px rgba(2, 14, 26, 0.28);
+
+  /* Geometry — a restrained ramp. `md` is the default for controls,
+     `lg` for panels, `xl` for large content cards; `pill` stays for
+     genuinely capsule-shaped things (search field, tabs, chips). */
   --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-pill: 999px;
 
   /* Spacing scale */

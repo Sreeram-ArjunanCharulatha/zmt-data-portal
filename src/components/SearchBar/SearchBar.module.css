@@ -33,7 +33,10 @@
   border-radius: var(--radius-pill);
   background: var(--surface);
   border: 2px solid transparent;
-  box-shadow: 0 10px 30px rgba(3, 22, 45, 0.24);
+  /* Was `0 10px 30px /0.24` — a deep drop shadow that detached the
+     field from the masthead it sits on. It should read as inset into
+     the header band, not hovering above it. */
+  box-shadow: 0 2px 8px rgba(3, 22, 45, 0.14);
   transition: border-color var(--dur-fast) var(--ease-out),
     box-shadow var(--dur-fast) var(--ease-out);
   /* The .glow utility defaults to a white spotlight, invisible on this
@@ -49,8 +52,8 @@
 
 .fieldFocused {
   border-color: #7cc4ec;
-  box-shadow: 0 10px 30px rgba(3, 22, 45, 0.28),
-    0 0 0 4px rgba(124, 196, 236, 0.28);
+  box-shadow: 0 2px 8px rgba(3, 22, 45, 0.16),
+    0 0 0 3px rgba(124, 196, 236, 0.22);
 }
 
 .searchIcon {
@@ -136,18 +139,22 @@
   padding: 0 20px;
   flex-shrink: 0;
   border-radius: var(--radius-pill);
-  background: linear-gradient(180deg, var(--primary-light-blue) 0%, var(--primary-blue) 100%);
+  /* Flat brand blue rather than a light-to-dark gradient, and no
+     coloured glow underneath (was `0 4px 14px rgba(10,127,194,0.45)`).
+     The gradient plus glow read as a game button; a solid fill in the
+     institutional blue is what makes it read as a primary action. */
+  background: var(--primary-blue);
   color: #ffffff;
   font-size: 13.5px;
   font-weight: 650;
   letter-spacing: 0.01em;
-  box-shadow: 0 4px 14px rgba(10, 127, 194, 0.45);
-  transition: filter var(--dur-fast) var(--ease-out),
+  box-shadow: var(--shadow-xs);
+  transition: background var(--dur-fast) var(--ease-out),
     transform var(--dur-fast) var(--ease-out);
 }
 
 .searchButton:hover {
-  filter: brightness(1.08);
+  background: var(--primary-dark-blue);
 }
 
 .searchButton:active {

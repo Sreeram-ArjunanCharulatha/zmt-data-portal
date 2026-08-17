@@ -5,9 +5,32 @@ import * as THREE from 'three';
 import { HOME_VIEW, type GlobeCameraApi } from '../../hooks/useGlobeCamera';
 import { cameraDistanceToZoomLevel, MIN_CAMERA_DISTANCE } from '../../utils/clustering';
 import { latLonToVector3, vector3ToLatLon } from '../../utils/geoCoordinates';
+import { HALO_RADIUS } from './Atmosphere';
 
-/** Extra room around the globe so it is never clipped by the viewport. */
-const FIT_MARGIN = 1.14;
+/* Extra room around the globe so it is never clipped by the viewport.
+   Derived from the atmosphere's own outer radius rather than typed in:
+   the camera has to frame the *halo*, not the sphere, and the two used
+   to disagree (fit 1.14 vs halo 1.19), which cropped the glow — and the
+   limb-side markers sitting proud of it — at the top and bottom edges.
+   The extra margin is breathing room so the globe reads as sitting in
+   the page rather than filling it wall to wall. It is also a usability
+   allowance, not just an aesthetic one: everything outside the sphere's
+   silhouette is where wheel events fall through to the page (see the
+   zoom-gating effect below), so this gutter is the area a user can
+   comfortably scroll from.
+
+   1.06 puts the halo at ~94% of the shorter viewport axis. The gutter
+   this leaves is thin at the top and bottom but still very wide at the
+   sides, and the sides are where a pointer naturally rests, so
+   scrolling stays easy without shrinking the globe to buy vertical room
+   it does not really need. Do not push this below ~1.02: the halo would
+   reach the viewport edge and start being clipped again. */
+const FIT_MARGIN = HALO_RADIUS * 1.06;
+
+/** The margin this file's zoom clamps were originally tuned against. */
+const LEGACY_FIT_MARGIN = 1.14;
+/** Cancels FIT_MARGIN out of the zoom clamps — see their use below. */
+const ZOOM_RANGE_REBASE = LEGACY_FIT_MARGIN / FIT_MARGIN;
 
 const TWO_PI = Math.PI * 2;
 
@@ -27,8 +50,12 @@ function easeInOutCubic(t: number): number {
  * OrbitControls completes one orbit in 60 / autoRotateSpeed seconds.
  * ------------------------------------------------------------------ */
 const SIDEREAL_DAY_SECONDS = 86164;
-/** 1 second on screen ≈ 12 minutes of Earth rotation (one turn ≈ 2 min). */
-const TIME_COMPRESSION = 720;
+/** 1 second on screen ≈ 24 minutes of Earth rotation (one turn ≈ 1 min).
+ *  Doubled from 720: a two-minute revolution was slow enough that the
+ *  globe read as static in a glance, which undersells that it is live
+ *  and draggable. This is the one knob for rotation speed — raise it to
+ *  go faster. */
+const TIME_COMPRESSION = 1440;
 const AUTO_ROTATE_SPEED = 60 / (SIDEREAL_DAY_SECONDS / TIME_COMPRESSION);
 
 export type CameraFocus = {
@@ -60,7 +87,13 @@ export function CameraRig({
   onZoomLevelChange,
 }: CameraRigProps) {
   const controlsRef = useRef<ElementRef<typeof OrbitControls> | null>(null);
-  const { camera, size } = useThree();
+  const { camera, size, gl } = useThree();
+  /* Reactive, unlike `controlsRef`: OrbitControls sets this (via
+     `makeDefault`) only after it has mounted, which is *after* this
+     component's effects first run. Effects that need the controls must
+     depend on this or they fire once against a null ref and never
+     re-run. */
+  const defaultControls = useThree((state) => state.controls);
 
   const fitRef = useRef(2.6);
   /** Camera distance expressed as a multiple of the fit distance. */
@@ -98,8 +131,19 @@ export function CameraRig({
 
     const controls = controlsRef.current;
     if (controls) {
-      controls.minDistance = Math.max(MIN_CAMERA_DISTANCE, fit * 0.48);
-      controls.maxDistance = fit * 1.35;
+      /* Both clamps are expressed against the framing distance, so they
+         have to be re-based whenever FIT_MARGIN changes or the reachable
+         zoom range would silently move with it. `ZOOM_RANGE_REBASE`
+         cancels the margin out, keeping the closest and furthest
+         distances exactly where they were before the margin was widened
+         to stop the halo being cropped — App.tsx's CLOSE_UP_DISTANCE
+         (1.72) in particular has to stay reachable, and it sits just
+         under what an un-rebased `fit * 0.48` would now clamp to. */
+      controls.minDistance = Math.max(
+        MIN_CAMERA_DISTANCE,
+        fit * 0.48 * ZOOM_RANGE_REBASE,
+      );
+      controls.maxDistance = fit * 1.35 * ZOOM_RANGE_REBASE;
     }
 
     /* Restore the user's zoom from a stored *ratio* of the fit distance
@@ -127,6 +171,84 @@ export function CameraRig({
     perspective.updateProjectionMatrix();
     controls?.update();
   }, [camera, size.width, size.height]);
+
+  /* ---------------------------------------------------------------- *
+   * Scroll ownership: only the globe itself captures the wheel.
+   *
+   * The canvas is full-bleed, but the globe is a circle in the middle of
+   * it. OrbitControls binds `wheel` to the whole canvas, so with zoom
+   * always on, a wheel event anywhere in that rectangle — including the
+   * wide empty margins either side of the sphere — was swallowed as a
+   * zoom and the page simply would not scroll.
+   *
+   * So zoom is toggled by where the pointer actually is: inside the
+   * sphere's projected silhouette it belongs to the globe, outside it
+   * belongs to the page. OrbitControls only calls `preventDefault` on
+   * wheel while `enableZoom` is true, so flipping this flag is all it
+   * takes to hand the gesture back to the document.
+   *
+   * `enableZoom` is intentionally *not* passed as a JSX prop — drei only
+   * writes props it is given, so managing it imperatively here survives
+   * re-renders.
+   * ---------------------------------------------------------------- */
+  useEffect(() => {
+    const controls = defaultControls as { enableZoom: boolean } | null;
+    const element = gl.domElement;
+    if (!controls || !element) return;
+
+    /* Slightly beyond the silhouette so the hit area matches what reads
+       as "on the globe" — the limb and its halo, not a hairline edge. */
+    const ZOOM_HIT_PADDING = 1.06;
+
+    const isOverGlobe = (event: { clientX: number; clientY: number }) => {
+      const rect = element.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return false;
+
+      const perspective = camera as THREE.PerspectiveCamera;
+      if (!perspective.isPerspectiveCamera) return false;
+
+      /* The camera always looks at the origin, so the globe's centre
+         projects to the centre of the canvas. */
+      const dx = event.clientX - (rect.left + rect.width / 2);
+      const dy = event.clientY - (rect.top + rect.height / 2);
+
+      /* Apparent angular radius of a sphere of radius R seen from
+         distance d is asin(R/d); converting that to pixels through the
+         projection gives the silhouette's on-screen radius. */
+      const distance = perspective.position.length();
+      if (distance <= 1) return true;
+      const angular = Math.asin(Math.min(1, 1 / distance));
+      const vFov = (perspective.fov * Math.PI) / 180;
+      const radiusPx =
+        (Math.tan(angular) / Math.tan(vFov / 2)) * (rect.height / 2);
+
+      return Math.hypot(dx, dy) <= radiusPx * ZOOM_HIT_PADDING;
+    };
+
+    /* Decided on the wheel event itself, in the capture phase, rather
+       than tracked from `pointermove`. OrbitControls binds its wheel
+       handler in the bubble phase, so capture here always runs first and
+       the flag is correct by the time it reads it. Deriving the answer
+       from a prior pointermove looked equivalent but quietly wasn't: a
+       wheel can arrive with no pointermove before it — the pointer
+       already resting over the globe on load, or a trackpad scroll that
+       moves no cursor — and the stale flag then sent a genuine
+       over-the-globe zoom to the page as a scroll. */
+    const handleWheelCapture = (event: WheelEvent) => {
+      controls.enableZoom = isOverGlobe(event);
+    };
+
+    controls.enableZoom = false;
+    element.addEventListener('wheel', handleWheelCapture, {
+      capture: true,
+      passive: true,
+    });
+    return () => {
+      element.removeEventListener('wheel', handleWheelCapture, {
+        capture: true,
+      });
+    };
+  }, [camera, gl, defaultControls]);
 
   /* ---------------------------------------------------------------- *
    * Imperative API consumed by the on-screen control buttons.

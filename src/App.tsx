@@ -19,6 +19,7 @@ import { MobileFilterDrawer } from './components/MobileFilterDrawer/MobileFilter
 import { ClusterPanel } from './components/ClusterPanel/ClusterPanel';
 import { AnimatedCounter } from './components/AnimatedCounter/AnimatedCounter';
 import { usePointerGlow } from './hooks/usePointerGlow';
+import { useScrollReveal } from './hooks/useScrollReveal';
 import {
   EMPTY_FILTERS,
   countActiveFilters,
@@ -77,6 +78,7 @@ export default function App() {
   // usePointerGlow for why this is plain CSS custom properties rather
   // than React state or a GSAP tween.
   const workspaceGlowRef = usePointerGlow<HTMLDivElement>();
+  const welcomeCardRef = useScrollReveal<HTMLDivElement>();
 
   /* --------------------------- derived data -------------------------- */
   const { results, facets, datasetTotal, tabCounts } = useDatasetFilters(
@@ -305,7 +307,12 @@ export default function App() {
         />
       </div>
 
-      <div ref={workspaceGlowRef} className={`${styles.canvasBackdrop} glow`}>
+      <div
+        ref={workspaceGlowRef}
+        className={`${styles.canvasBackdrop} glow ${
+          fullscreen ? styles.canvasBackdropFullscreen : ''
+        }`}
+      >
         <main className={styles.main} id="main">
           {/* Kept mounted on wide viewports so collapsing animates. */}
           {!isCompact && !fullscreen && (
@@ -336,6 +343,7 @@ export default function App() {
                       selectedLocationId={selected?.id ?? null}
                       autoRotate={autoRotate}
                       reducedMotion={reducedMotion}
+                      fullscreen={fullscreen}
                       cameraHandle={cameraHandle}
                       focus={focus}
                       zoomLevel={zoomLevel}
@@ -476,7 +484,7 @@ export default function App() {
 
       <section className={styles.below}>
         <div className={styles.belowInner}>
-          <div className={styles.welcomeCard}>
+          <div ref={welcomeCardRef} className={styles.welcomeCard}>
             <h2 className={styles.welcomeTitle}>Welcome to ZMT's Data Portal</h2>
             <p className={styles.welcomeText}>
               This is the web frontend of ZMT's Data Portal, where you can find

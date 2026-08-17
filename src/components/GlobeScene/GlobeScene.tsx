@@ -24,6 +24,9 @@ type GlobeSceneProps = {
   selectedLocationId: string | null;
   autoRotate: boolean;
   reducedMotion: boolean;
+  /** Fullscreen swaps the pale page background for deep space, so the
+   *  starfield has to be dense/bright enough to actually read there. */
+  fullscreen: boolean;
   cameraHandle: GlobeCameraHandle;
   focus: CameraFocus | null;
   zoomLevel: number;
@@ -36,11 +39,16 @@ type GlobeSceneProps = {
   onZoomLevelChange: (level: number) => void;
 };
 
+/** The watermark behind the globe. Split per-glyph when rendered, so it
+ *  lives here rather than inline in two places. */
+const WORDMARK_TEXT = 'ZMT';
+
 export default function GlobeScene({
   nodes,
   selectedLocationId,
   autoRotate,
   reducedMotion,
+  fullscreen,
   cameraHandle,
   focus,
   zoomLevel,
@@ -143,13 +151,15 @@ export default function GlobeScene({
     containerRef: wordmarkRef,
     fontSize: wordmarkSize,
     centerOffsetEm: wordmarkOffsetEm,
+    letterOffsetsEm: wordmarkLetterOffsets,
   } = useFitWordmark(
-    'ZMT',
+    WORDMARK_TEXT,
     wordmarkFont,
     700,
-    1,
-    /* Width is the priority now (edge-to-edge, no side margin) — this
-       height ceiling is a last-resort safety cap, not a normal
+    /* Just under full width, so the mark has a little air either side
+       rather than running edge to edge. */
+    0.9,
+    /* This height ceiling is a last-resort safety cap, not a normal
        constraint, so it's set well above what three capital letters at
        full container width need on any realistic (wider-than-tall)
        globe stage. `.wordmark`'s `overflow: hidden` still protects
@@ -157,14 +167,35 @@ export default function GlobeScene({
        fitted size past it. */
     1.5,
     -0.055,
+    /* Centred: equal air before the "Z" and after the "T". `solveShiftEm`
+       is still wired up if the mark ever needs nudging off-centre, but
+       the ink-centring correction in `solveCenterOffsetEm` is what
+       actually does the work here — the "Z" and "T" carry different side
+       bearings, so centring the type box alone leaves the visible
+       letters looking lopsided. */
+    0,
   );
 
   return (
     <div className={styles.wrapper}>
       {/* Behind the (transparent-cleared) canvas, not on it: a giant
           watermark the Earth sits in front of and partly occludes,
-          without ever competing with the sphere for attention. */}
-      <div ref={wordmarkRef} className={styles.wordmark} aria-hidden="true">
+          without ever competing with the sphere for attention.
+
+          Dropped entirely in fullscreen. Its `soft-light` blend is tuned
+          against the blue workspace; over the fullscreen black the same
+          settings render a much heavier grey, and fullscreen is meant to
+          be the undecorated view of the globe in space. Still mounted
+          (not merely hidden) so `useFitWordmark`'s ResizeObserver keeps
+          measuring — the mark is sized correctly the moment fullscreen
+          exits, rather than flashing at a stale size. */}
+      <div
+        ref={wordmarkRef}
+        className={`${styles.wordmark} ${
+          fullscreen ? styles.wordmarkHidden : ''
+        }`}
+        aria-hidden="true"
+      >
         <span
           className={styles.wordmarkText}
           style={
@@ -180,12 +211,39 @@ export default function GlobeScene({
               : undefined
           }
         >
-          ZMT
+          {/* One span per glyph so each can carry its own optical-kerning
+              nudge from useFitWordmark. `transform` rather than margin:
+              it shifts the glyph without touching layout, so the advance
+              box the size and centring were solved against stays exactly
+              as measured. */}
+          {[...WORDMARK_TEXT].map((char, index) => (
+            <span
+              key={`${char}-${index}`}
+              style={{
+                display: 'inline-block',
+                transform: `translateX(${wordmarkLetterOffsets[index] ?? 0}em)`,
+              }}
+            >
+              {char}
+            </span>
+          ))}
         </span>
       </div>
 
       <Canvas
         className={styles.canvas}
+        /* Overrides R3F's own inline `touch-action: none` on this
+           container, which handed every touch gesture to OrbitControls:
+           a vertical swipe anywhere over the (full-bleed) canvas rotated
+           the globe instead of scrolling, so on a phone the page was
+           simply stuck at the globe. It has to be set here rather than
+           in the stylesheet — inline styles win, so the CSS rule looked
+           correct and did nothing.
+           `pan-y` returns vertical swipes to the document while
+           horizontal drags still rotate the globe. Trade-off: touch
+           users tilt with the dock's controls rather than a vertical
+           drag; pinch-zoom is unaffected. */
+        style={{ touchAction: 'pan-y' }}
         dpr={[1, 1.75]}
         gl={{ antialias: true, powerPreference: 'high-performance' }}
         camera={{ fov: 45, near: 0.01, far: 300, position: [0, 0, 2.8] }}
@@ -196,11 +254,22 @@ export default function GlobeScene({
       >
         <SceneLighting />
 
+        {/* Denser and a touch larger in fullscreen. On the pale page
+            background the starfield is only a faint texture, and pushing
+            it further there would read as noise over a light gradient —
+            but against the fullscreen black it *is* the sky, and at the
+            windowed values it all but disappeared. */}
         <Stars
           radius={70}
           depth={45}
-          count={reducedMotion ? 1400 : 2600}
-          factor={2.9}
+          count={
+            reducedMotion
+              ? 1400
+              : fullscreen
+                ? 6000
+                : 2600
+          }
+          factor={fullscreen ? 4.2 : 2.9}
           saturation={0}
           fade
           speed={reducedMotion ? 0 : 0.15}
