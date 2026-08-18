@@ -497,8 +497,9 @@ export default function App() {
               metadata and links to research data published by ZMT researchers
               and their partners. Search above, spin the globe to browse by
               place, or narrow the catalogue with the filters. Every record
-              links out to its source repository — PANGAEA, Dryad, Zenodo, ENA
-              and others — where the files themselves are held. Questions go to{' '}
+              links out to its source repository, where the files themselves
+              are held: PANGAEA, Dryad, Zenodo, ENA and others. Questions go
+              to{' '}
               <a href="mailto:research-data@leibniz-zmt.de">
                 research-data@leibniz-zmt.de
               </a>
