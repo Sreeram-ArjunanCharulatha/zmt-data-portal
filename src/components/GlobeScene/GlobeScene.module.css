@@ -70,10 +70,12 @@
      the original 0.5 spec value — even blended, full weight at 0.5 read
      as too dominant against the workspace, competing with the globe
      instead of sitting quietly behind it. */
-  /* Dropped again, from 0.2 (~30% less). The mark is branding, not
-     content: the globe has to be the first thing the eye lands on, and
-     at 0.2 the letterforms still competed with it. */
-  opacity: 0.14;
+  /* Stepped down over several passes: 0.5 (original spec) -> 0.2 -> 0.14
+     -> 0.09. The mark is branding, not content — the globe has to be the
+     first thing the eye lands on, and at each higher value the
+     letterforms still read as a second object competing with it rather
+     than as a watermark in the background. */
+  opacity: 0.09;
   mix-blend-mode: soft-light;
   text-shadow: 0 18px 58px rgba(2, 27, 48, 0.14);
   white-space: nowrap;

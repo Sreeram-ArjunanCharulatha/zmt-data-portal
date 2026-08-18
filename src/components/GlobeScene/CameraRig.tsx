@@ -60,7 +60,7 @@ function easeInOutCubic(t: number): number {
  * factor. Everything stays derived from the real figure, so the speed is
  * a statement about how fast time runs, not an arbitrary number.
  *
- * OrbitControls completes one orbit in 60 / autoRotateSpeed seconds.
+ * Driven from the frame loop, not OrbitControls' own autoRotate.
  * ------------------------------------------------------------------ */
 const SIDEREAL_DAY_SECONDS = 86164;
 /** 1 second on screen ≈ 12 minutes of Earth rotation (one turn ≈ 2 min).
@@ -73,7 +73,17 @@ const SIDEREAL_DAY_SECONDS = 86164;
  *  both, equal angular speed *is* equal apparent speed, and a second
  *  constant would only be a way for the two to drift apart again. */
 const TIME_COMPRESSION = 720;
-const AUTO_ROTATE_SPEED = 60 / (SIDEREAL_DAY_SECONDS / TIME_COMPRESSION);
+/** Seconds per revolution at the compression above. */
+const SECONDS_PER_TURN = SIDEREAL_DAY_SECONDS / TIME_COMPRESSION;
+/** Radians per *second*. Driven from the frame delta below rather than
+ *  handed to OrbitControls' own `autoRotate`, which advances by a fixed
+ *  angle per `update()` call: drei calls `update()` without a delta, so
+ *  three.js falls back to assuming 60fps and the globe turned at double
+ *  speed on a 120Hz display and half speed on a 30fps one. Integrating
+ *  the real delta makes the rate the same everywhere. */
+const AUTO_ROTATE_RADIANS_PER_SECOND = (Math.PI * 2) / SECONDS_PER_TURN;
+/** Spin axis: the world up, so the globe turns about its own poles. */
+const AUTO_ROTATE_AXIS = new THREE.Vector3(0, 1, 0);
 
 export type CameraFocus = {
   latitude: number;
@@ -452,6 +462,18 @@ export function CameraRig({
   useFrame((_, delta) => {
     const anim = animRef.current;
 
+    /* Auto-rotation, integrated against the real frame delta rather than
+       left to OrbitControls' own `autoRotate` — see
+       AUTO_ROTATE_RADIANS_PER_SECOND. Skipped while a camera animation
+       owns the position, so a fly-to isn't fought frame by frame. */
+    if (autoRotate && !reducedMotion && !anim.active) {
+      camera.position.applyAxisAngle(
+        AUTO_ROTATE_AXIS,
+        -AUTO_ROTATE_RADIANS_PER_SECOND * Math.min(delta, 0.05),
+      );
+      camera.lookAt(0, 0, 0);
+    }
+
     if (anim.active) {
       anim.elapsed += Math.min(delta, 0.05);
       const t = reducedMotion
@@ -522,8 +544,6 @@ export function CameraRig({
       dampingFactor={0.06}
       rotateSpeed={0.42}
       zoomSpeed={0.55}
-      autoRotate={autoRotate && !reducedMotion}
-      autoRotateSpeed={AUTO_ROTATE_SPEED}
       minDistance={MIN_CAMERA_DISTANCE}
       maxDistance={4.2}
       minPolarAngle={0.12}

@@ -247,9 +247,14 @@ export default function App() {
     );
   }, [cameraHandle]);
 
+  /* Reset restores the *whole* default state, not just the camera: it
+     returns to the home view and starts the globe turning again. That is
+     what makes a separate play/pause control unnecessary — any
+     interaction with the globe stops the rotation (see
+     `handleUserInteract`), and reset is how you get it back. */
   const handleReset = useCallback(() => {
     cameraHandle.reset();
-    setAutoRotate((prev) => (prev ? false : prev));
+    setAutoRotate(true);
   }, [cameraHandle]);
 
   const handlePan = useCallback(
@@ -392,7 +397,6 @@ export default function App() {
                 )}
 
                 <GlobeControls
-                  autoRotate={autoRotate}
                   helpVisible={helpVisible}
                   fullscreen={fullscreen}
                   compact={selected !== null}
@@ -401,7 +405,6 @@ export default function App() {
                   onReset={handleReset}
                   onLocate={handleLocate}
                   onPan={handlePan}
-                  onToggleAutoRotate={() => setAutoRotate((prev) => !prev)}
                   onToggleFullscreen={() => setFullscreen((prev) => !prev)}
                   onToggleHelp={setHelpVisible}
                 />

@@ -7,8 +7,6 @@ import {
   Minimize2,
   MousePointerClick,
   Move3d,
-  Pause,
-  Play,
   Plus,
   Minus,
   RotateCcw,
@@ -17,7 +15,6 @@ import {
 import styles from './GlobeControls.module.css';
 
 type GlobeControlsProps = {
-  autoRotate: boolean;
   helpVisible: boolean;
   fullscreen: boolean;
   /** True when the dataset card is open and vertical room is scarce. */
@@ -27,7 +24,6 @@ type GlobeControlsProps = {
   onReset: () => void;
   onLocate: () => void;
   onPan: (deltaLatitude: number, deltaLongitude: number) => void;
-  onToggleAutoRotate: () => void;
   onToggleFullscreen: () => void;
   onToggleHelp: (visible: boolean) => void;
 };
@@ -40,7 +36,6 @@ const HELP_ITEMS = [
 ];
 
 export function GlobeControls({
-  autoRotate,
   helpVisible,
   fullscreen,
   compact,
@@ -48,7 +43,6 @@ export function GlobeControls({
   onZoomOut,
   onReset,
   onLocate,
-  onToggleAutoRotate,
   onToggleFullscreen,
   onToggleHelp,
 }: GlobeControlsProps) {
@@ -123,10 +117,10 @@ export function GlobeControls({
           type="button"
           className={styles.button}
           onClick={onReset}
-          title="Reset view"
+          title="Reset view and resume rotation"
         >
           <RotateCcw size={16} aria-hidden="true" />
-          <span className="srOnly">Reset view</span>
+          <span className="srOnly">Reset view and resume rotation</span>
         </button>
         <button
           type="button"
@@ -137,22 +131,9 @@ export function GlobeControls({
           <Crosshair size={16} aria-hidden="true" />
           <span className="srOnly">Go to my location</span>
         </button>
-        <button
-          type="button"
-          className={`${styles.button} ${autoRotate ? styles.buttonActive : ''}`}
-          onClick={onToggleAutoRotate}
-          aria-pressed={autoRotate}
-          title={autoRotate ? 'Pause rotation' : 'Rotate globe'}
-        >
-          {autoRotate ? (
-            <Pause size={15} aria-hidden="true" />
-          ) : (
-            <Play size={15} aria-hidden="true" />
-          )}
-          <span className="srOnly">
-            {autoRotate ? 'Pause rotation' : 'Rotate globe'}
-          </span>
-        </button>
+        {/* No play/pause control: rotation is not a mode the user has to
+            manage. Touching the globe stops it, and Reset above starts it
+            again along with restoring the home view. */}
 
         <span className={styles.divider} aria-hidden="true" />
 
