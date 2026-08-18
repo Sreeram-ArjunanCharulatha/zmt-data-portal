@@ -7,6 +7,10 @@ import { DatasetMarker } from '../DatasetMarker/DatasetMarker';
 import type { NodeRegistration } from './SpriteNode';
 
 const REFERENCE_DISTANCE = 2.6;
+/** Canvas height, in px, that marker sizing is normalised against — see
+ *  `viewportScale`. Set so the windowed stage (~694px at 1440x900) keeps
+ *  the marker size it had before sizing was made height-independent. */
+const MARKER_REFERENCE_HEIGHT = 634;
 const DECLUTTER_INTERVAL = 0.14;
 /** Minimum time a sprite must hold its declutter state before it's
  * allowed to flip again. The screen-space hysteresis below only guards
@@ -178,10 +182,25 @@ export function GlobeNodes({
     // nothing should react to mouse proximity alone.
     const selectedPulse = 1.16 + Math.sin(elapsedTime * 2.4) * 0.07;
     const emphasis = selected ? selectedPulse : 1;
-    // Shrink markers a little on small viewports so they never swamp
-    // the globe, and scale by distance-to-this-marker (not orbit
-    // radius) so they don't balloon as the camera closes in on one.
-    const viewportScale = THREE.MathUtils.clamp(size.height / 760, 0.82, 1.05);
+    /* Cancel the canvas height out of the sprite's *screen* size.
+       A sprite projects to roughly `worldSize / distance × canvasHeight`
+       pixels, and the `pointDistance` factor below already cancels the
+       distance term — which leaves pixel size directly proportional to
+       canvas height. Fullscreen's canvas is about a quarter taller than
+       the windowed stage, so markers came out visibly bigger there even
+       though the globe itself is now the same size in both views. The
+       old form (`size.height / 760`) scaled the same way as the height
+       rather than against it, compounding the difference instead of
+       removing it.
+       `MARKER_REFERENCE_HEIGHT` is chosen so the windowed view keeps
+       exactly the size it already had; every other viewport now matches
+       it. The clamp still lets markers shrink slightly on very short
+       viewports so they never swamp the globe. */
+    const viewportScale = THREE.MathUtils.clamp(
+      MARKER_REFERENCE_HEIGHT / size.height,
+      0.5,
+      1.15,
+    );
     const pointDistance = camera.position.distanceTo(sprite.position);
     const targetScale =
       baseScale * (pointDistance / REFERENCE_DISTANCE) * emphasis * viewportScale;
