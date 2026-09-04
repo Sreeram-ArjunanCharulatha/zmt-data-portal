@@ -7,92 +7,47 @@ import { cameraDistanceToZoomLevel, MIN_CAMERA_DISTANCE } from '../../utils/clus
 import { latLonToVector3, vector3ToLatLon } from '../../utils/geoCoordinates';
 import { HALO_RADIUS } from './Atmosphere';
 
-/* Extra room around the globe so it is never clipped by the viewport.
-   Derived from the atmosphere's own outer radius rather than typed in:
-   the camera has to frame the *halo*, not the sphere, and the two used
-   to disagree (fit 1.14 vs halo 1.19), which cropped the glow — and the
-   limb-side markers sitting proud of it — at the top and bottom edges.
-   The extra margin is breathing room so the globe reads as sitting in
-   the page rather than filling it wall to wall. It is also a usability
-   allowance, not just an aesthetic one: everything outside the sphere's
-   silhouette is where wheel events fall through to the page (see the
-   zoom-gating effect below), so this gutter is the area a user can
-   comfortably scroll from.
-
-   1.06 puts the halo at ~94% of the shorter viewport axis. The gutter
-   this leaves is thin at the top and bottom but still very wide at the
-   sides, and the sides are where a pointer naturally rests, so
-   scrolling stays easy without shrinking the globe to buy vertical room
-   it does not really need. Do not push this below ~1.02: the halo would
-   reach the viewport edge and start being clipped again. */
+// Frame the halo, not just the sphere, or the glow gets clipped.
+// Keep above ~1.02 or it starts cropping again.
 const FIT_MARGIN = HALO_RADIUS * 1.06;
 
-/* Target diameter of the globe as a fraction of the *viewport* height.
-   This is the one knob for how large the globe reads — raise it to grow
-   the sphere in both the windowed and fullscreen views at once. Because
-   it is measured against the viewport rather than the canvas, the two
-   views come out the same size on screen. */
+// Globe size, as a fraction of viewport height. Against the viewport
+// rather than the canvas, so windowed and fullscreen match on screen.
 const GLOBE_VIEWPORT_FRACTION = 0.55;
 
-/** Canvas-size change (as a fraction of the previous size) above which a
- *  resize is treated as a discrete layout switch rather than a frame of
- *  an animation. Fullscreen toggles land far above this; a filter panel
- *  sliding open steps well below it. */
+// Above this, a resize is a layout switch (fullscreen) rather than a
+// frame of an animation (panel sliding open).
 const LARGE_RESIZE_FRACTION = 0.15;
 
-/** The margin this file's zoom clamps were originally tuned against. */
+// Keeps the zoom range put when FIT_MARGIN changes.
 const LEGACY_FIT_MARGIN = 1.14;
-/** Cancels FIT_MARGIN out of the zoom clamps — see their use below. */
 const ZOOM_RANGE_REBASE = LEGACY_FIT_MARGIN / FIT_MARGIN;
 
 const TWO_PI = Math.PI * 2;
 
-/** Accelerate, cruise, settle. */
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-/* ------------------------------------------------------------------ *
- * Auto-rotation, tied to Earth's actual rotation.
- *
- * A sidereal day is 86,164 s. At 1:1 the globe would turn 0.004°/s —
- * motionless to the eye — so the rate is time-compressed by a fixed
- * factor. Everything stays derived from the real figure, so the speed is
- * a statement about how fast time runs, not an arbitrary number.
- *
- * Driven from the frame loop, not OrbitControls' own autoRotate.
- * ------------------------------------------------------------------ */
+// Auto-rotation, scaled off a real sidereal day so the speed means
+// something. Bump TIME_COMPRESSION to spin faster.
 const SIDEREAL_DAY_SECONDS = 86164;
-/** 1 second on screen ≈ 12 minutes of Earth rotation (one turn ≈ 2 min).
- *  The single knob for rotation speed — raise it to go faster.
- *
- *  One rate for both views, deliberately. There used to be a separate
- *  fullscreen multiplier because the globe rendered much larger there,
- *  so the same angular rate swept the surface past faster. Now that
- *  GLOBE_VIEWPORT_FRACTION makes the sphere the same on-screen size in
- *  both, equal angular speed *is* equal apparent speed, and a second
- *  constant would only be a way for the two to drift apart again. */
-const TIME_COMPRESSION = 720;
-/** Seconds per revolution at the compression above. */
+const TIME_COMPRESSION = 720; // ~2 min per turn
 const SECONDS_PER_TURN = SIDEREAL_DAY_SECONDS / TIME_COMPRESSION;
-/** Radians per *second*. Driven from the frame delta below rather than
- *  handed to OrbitControls' own `autoRotate`, which advances by a fixed
- *  angle per `update()` call: drei calls `update()` without a delta, so
- *  three.js falls back to assuming 60fps and the globe turned at double
- *  speed on a 120Hz display and half speed on a 30fps one. Integrating
- *  the real delta makes the rate the same everywhere. */
+
+// Per second, not per frame. drei calls controls.update() without a
+// delta, so three.js assumes 60fps and we spin 2x fast on a 120Hz screen.
 const AUTO_ROTATE_RADIANS_PER_SECOND = (Math.PI * 2) / SECONDS_PER_TURN;
-/** Spin axis: the world up, so the globe turns about its own poles. */
 const AUTO_ROTATE_AXIS = new THREE.Vector3(0, 1, 0);
 
 export type CameraFocus = {
   latitude: number;
   longitude: number;
-  /** Orbit radius to settle at. Omitted means "keep the current zoom". */
+  /** Orbit radius to settle at. Omit to keep the current zoom. */
   distance?: number;
-  /** Skip the "don't crop the globe" clamp — used for direct selections. */
+  /** Skip the anti-crop clamp. Used for direct selections. */
   allowClose?: boolean;
-  /** Changes whenever the app wants the camera to re-focus. */
+  /** Bump to re-trigger a focus. */
   key: string;
 };
 
@@ -115,11 +70,8 @@ export function CameraRig({
 }: CameraRigProps) {
   const controlsRef = useRef<ElementRef<typeof OrbitControls> | null>(null);
   const { camera, size, gl } = useThree();
-  /* Reactive, unlike `controlsRef`: OrbitControls sets this (via
-     `makeDefault`) only after it has mounted, which is *after* this
-     component's effects first run. Effects that need the controls must
-     depend on this or they fire once against a null ref and never
-     re-run. */
+  // Reactive, unlike controlsRef — that's still null when effects
+  // first run, so anything depending on controls has to use this.
   const defaultControls = useThree((state) => state.controls);
 
   const fitRef = useRef(2.6);
@@ -128,8 +80,7 @@ export function CameraRig({
   /** Distance the camera should ease to after a layout change. */
   const pendingFitRef = useRef<number | null>(null);
   const hasFittedRef = useRef(false);
-  /** Last canvas size seen, to tell a fullscreen toggle (one big jump)
-   *  from a panel animation (many small steps). */
+  // Tells a fullscreen toggle from a panel animation.
   const previousSizeRef = useRef({ width: 0, height: 0 });
   const zoomLevelRef = useRef(-1);
   const animRef = useRef({
@@ -140,11 +91,7 @@ export function CameraRig({
     duration: 1,
   });
 
-  /* ---------------------------------------------------------------- *
-   * Fit the globe to whatever space the layout gives the canvas.
-   * Runs on mount and on every resize (including when the dataset card
-   * opens and shrinks the viewport height).
-   * ---------------------------------------------------------------- */
+  // Re-fit on mount and on every resize.
   useEffect(() => {
     const perspective = camera as THREE.PerspectiveCamera;
     if (!perspective.isPerspectiveCamera) return;
@@ -153,24 +100,14 @@ export function CameraRig({
     const vFov = (perspective.fov * Math.PI) / 180;
     const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect);
 
-    /* The floor: the distance at which the halo still fits the canvas on
-       both axes. The camera is never allowed closer than this, whatever
-       the size target below asks for, so the globe cannot be clipped. */
+    // Closest we can get without clipping the halo on either axis.
     const distanceForVertical = FIT_MARGIN / Math.sin(vFov / 2);
     const distanceForHorizontal = FIT_MARGIN / Math.sin(hFov / 2);
     const distanceThatFits = Math.max(distanceForVertical, distanceForHorizontal);
 
-    /* Size the globe against the *viewport*, not the canvas.
-       A canvas-relative fraction gives the globe the same share of
-       whatever box it is in — but fullscreen's canvas is roughly a
-       quarter taller than the windowed stage, so the same fraction came
-       out visibly bigger there. Solving for a target diameter in real
-       pixels makes the two views match on screen, which is what "the
-       same size" actually means to someone looking at it.
-
-       Inverts the projection: a sphere of radius 1 at distance d has
-       apparent angular radius asin(1/d), which lands at
-       tan(asin(1/d)) / tan(vFov/2) of the half-viewport. */
+    // Solve for a target diameter in real pixels. Fullscreen's canvas is
+    // ~25% taller, so a canvas-relative fraction rendered bigger there.
+    // Inverse projection: radius 1 at distance d subtends asin(1/d).
     const viewportHeight =
       document.documentElement.clientHeight || size.height;
     const targetRadiusPx = (viewportHeight * GLOBE_VIEWPORT_FRACTION) / 2;
@@ -179,41 +116,28 @@ export function CameraRig({
       (targetRadiusPx / halfCanvasPx) * Math.tan(vFov / 2);
     const distanceForTarget = 1 / Math.sin(Math.atan(tanAngular));
 
-    /* Farther of the two: the target normally wins, and the fit floor
-       takes over only where it would otherwise crop (short or narrow
-       viewports). */
+    // Target usually wins; the floor kicks in on short/narrow viewports.
     const fit = Math.max(distanceThatFits, distanceForTarget);
 
     fitRef.current = fit;
 
     const controls = controlsRef.current;
     if (controls) {
-      /* Closest zoom is pinned to MIN_CAMERA_DISTANCE rather than scaled
-         off the framing distance. It used to be `fit * 0.48`, which made
-         the reachable zoom drift every time the framing changed — and
-         now that `fit` differs between the windowed and fullscreen views
-         it would differ per view too, with fullscreen's larger value
-         clamping App.tsx's CLOSE_UP_DISTANCE (1.72) and quietly making
-         "open a dataset" settle farther out there than in the window.
-         MIN_CAMERA_DISTANCE is the documented floor and is stable. */
+      // Pinned, not fit-relative. Otherwise it differs per view and
+      // fullscreen ends up clamping CLOSE_UP_DISTANCE in App.tsx.
       controls.minDistance = MIN_CAMERA_DISTANCE;
-      /* Furthest stays framing-relative — how far out you may pull back
-         genuinely should depend on how the globe is framed. */
       controls.maxDistance = fit * 1.35 * ZOOM_RANGE_REBASE;
     }
 
-    /* Restore the user's zoom from a stored *ratio* of the fit distance
-       rather than rescaling the current distance. Rescaling loses
-       information whenever the intermediate value hits a clamp, so a
-       burst of resizes (dev-tools drag, panel open/close) would ratchet
-       the camera out to maxDistance. */
+    // Restore zoom from a stored ratio. Rescaling the live distance
+    // ratchets out to maxDistance across a burst of resizes.
     const clamped = THREE.MathUtils.clamp(
       zoomRatioRef.current * fit,
       controls?.minDistance ?? MIN_CAMERA_DISTANCE,
       controls?.maxDistance ?? fit * 1.35,
     );
 
-    /* How much the canvas just changed, relative to its previous size. */
+    // How much the canvas just changed.
     const previous = previousSizeRef.current;
     const relativeChange = Math.max(
       Math.abs(size.width - previous.width) / Math.max(1, previous.width),
@@ -225,22 +149,14 @@ export function CameraRig({
       perspective.position.setLength(clamped);
       hasFittedRef.current = true;
     } else if (relativeChange > LARGE_RESIZE_FRACTION) {
-      /* One big jump — entering or leaving fullscreen. Here the camera
-         move is *compensating* for the canvas resize (the globe is sized
-         against the viewport, so a taller canvas needs a longer lens to
-         keep the sphere the same size on screen), which means the two
-         have to land on the same frame. Easing into it let the canvas
-         resize instantly while the camera caught up over the next few
-         hundred ms, and that lag is exactly the jump-then-settle stutter
-         seen when toggling fullscreen. */
+      // Fullscreen toggle. The camera move compensates for the resize,
+      // so both have to land on the same frame or you see it stutter.
       perspective.position.setLength(clamped);
       pendingFitRef.current = null;
       zoomRatioRef.current = clamped / fit;
     } else {
-      /* Small, incremental change. Hand it to the frame loop to ease
-         into: a resize like this is not one event — collapsing the
-         filter panel fires dozens as the width animates, so snapping
-         each time reads as the globe flickering. */
+      // Incremental. Ease into it — the filter panel fires dozens of
+      // these as it animates and snapping each one flickers.
       pendingFitRef.current = clamped;
     }
 
@@ -248,32 +164,19 @@ export function CameraRig({
     controls?.update();
   }, [camera, size.width, size.height]);
 
-  /* ---------------------------------------------------------------- *
-   * Scroll ownership: only the globe itself captures the wheel.
-   *
-   * The canvas is full-bleed, but the globe is a circle in the middle of
-   * it. OrbitControls binds `wheel` to the whole canvas, so with zoom
-   * always on, a wheel event anywhere in that rectangle — including the
-   * wide empty margins either side of the sphere — was swallowed as a
-   * zoom and the page simply would not scroll.
-   *
-   * So zoom is toggled by where the pointer actually is: inside the
-   * sphere's projected silhouette it belongs to the globe, outside it
-   * belongs to the page. OrbitControls only calls `preventDefault` on
-   * wheel while `enableZoom` is true, so flipping this flag is all it
-   * takes to hand the gesture back to the document.
-   *
-   * `enableZoom` is intentionally *not* passed as a JSX prop — drei only
-   * writes props it is given, so managing it imperatively here survives
-   * re-renders.
-   * ---------------------------------------------------------------- */
+  // Only zoom when the pointer is actually over the globe, otherwise the
+  // full-bleed canvas eats every scroll and the page won't move.
+  // OrbitControls only preventDefaults while enableZoom is true, so
+  // toggling it hands the gesture back to the document.
+  //
+  // Not a JSX prop: drei only writes props it's given, so setting it
+  // imperatively survives re-renders.
   useEffect(() => {
     const controls = defaultControls as { enableZoom: boolean } | null;
     const element = gl.domElement;
     if (!controls || !element) return;
 
-    /* Slightly beyond the silhouette so the hit area matches what reads
-       as "on the globe" — the limb and its halo, not a hairline edge. */
+    // A little past the silhouette so the limb counts as "on the globe".
     const ZOOM_HIT_PADDING = 1.06;
 
     const isOverGlobe = (event: { clientX: number; clientY: number }) => {
@@ -283,14 +186,11 @@ export function CameraRig({
       const perspective = camera as THREE.PerspectiveCamera;
       if (!perspective.isPerspectiveCamera) return false;
 
-      /* The camera always looks at the origin, so the globe's centre
-         projects to the centre of the canvas. */
+      // Camera always looks at the origin, so the globe is centred.
       const dx = event.clientX - (rect.left + rect.width / 2);
       const dy = event.clientY - (rect.top + rect.height / 2);
 
-      /* Apparent angular radius of a sphere of radius R seen from
-         distance d is asin(R/d); converting that to pixels through the
-         projection gives the silhouette's on-screen radius. */
+      // asin(R/d) is the angular radius; project it to pixels.
       const distance = perspective.position.length();
       if (distance <= 1) return true;
       const angular = Math.asin(Math.min(1, 1 / distance));
@@ -301,15 +201,9 @@ export function CameraRig({
       return Math.hypot(dx, dy) <= radiusPx * ZOOM_HIT_PADDING;
     };
 
-    /* Decided on the wheel event itself, in the capture phase, rather
-       than tracked from `pointermove`. OrbitControls binds its wheel
-       handler in the bubble phase, so capture here always runs first and
-       the flag is correct by the time it reads it. Deriving the answer
-       from a prior pointermove looked equivalent but quietly wasn't: a
-       wheel can arrive with no pointermove before it — the pointer
-       already resting over the globe on load, or a trackpad scroll that
-       moves no cursor — and the stale flag then sent a genuine
-       over-the-globe zoom to the page as a scroll. */
+    // Capture phase, so we run before OrbitControls' own handler.
+    // Don't track this from pointermove — a trackpad scroll fires no
+    // pointer event, and the stale flag sends the zoom to the page.
     const handleWheelCapture = (event: WheelEvent) => {
       controls.enableZoom = isOverGlobe(event);
     };
@@ -326,27 +220,22 @@ export function CameraRig({
     };
   }, [camera, gl, defaultControls]);
 
-  /* ---------------------------------------------------------------- *
-   * Imperative API consumed by the on-screen control buttons.
-   * ---------------------------------------------------------------- */
+  // Imperative API for the on-screen buttons.
   useEffect(() => {
     const spherical = new THREE.Spherical();
 
-    /* Set up an eased tween rather than an exponential chase. An
-       exponential decay starts at full speed and creeps at the end;
-       ease-in-out accelerates and settles, which is what reads as
-       "smooth" when the globe swings across the world. */
+    // Eased tween, not an exponential chase — decay starts fast and
+    // crawls at the end, which looks wrong on a long swing.
     const animateTo = (position: THREE.Vector3) => {
       const anim = animRef.current;
       anim.from.setFromVector3(camera.position);
       anim.to.setFromVector3(position);
 
-      /* Always take the short way round. */
+      // Take the short way round.
       while (anim.to.theta - anim.from.theta > Math.PI) anim.to.theta -= TWO_PI;
       while (anim.to.theta - anim.from.theta < -Math.PI) anim.to.theta += TWO_PI;
 
-      /* Longer journeys get more time, so speed stays roughly constant
-         instead of every move taking the same duration. */
+      // Longer trips take longer, so the speed stays about the same.
       const swing = Math.hypot(
         anim.to.theta - anim.from.theta,
         anim.to.phi - anim.from.phi,
@@ -392,8 +281,7 @@ export function CameraRig({
       },
 
       panBy: (deltaLatitude, deltaLongitude) => {
-        /* Step from wherever the camera is now, so the pad nudges the
-           view rather than jumping to an absolute coordinate. */
+        // Step from where we are, so the pad nudges rather than jumps.
         const origin = animRef.current.active
           ? new THREE.Vector3().setFromSpherical(animRef.current.to)
           : camera.position;
@@ -415,7 +303,7 @@ export function CameraRig({
     };
   }, [apiRef, camera]);
 
-  /* Initial framing: Africa and Europe facing the viewer. */
+  // Start on Africa/Europe.
   useEffect(() => {
     latLonToVector3(
       HOME_VIEW.latitude,
@@ -425,26 +313,22 @@ export function CameraRig({
     );
     camera.lookAt(0, 0, 0);
     controlsRef.current?.update();
-    /* Mount-only on purpose — later framing changes go through the API. */
+    // Mount only; later moves go through the API.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* Snapshot the zoom as a ratio of the fit distance. Called when a
-     gesture or animation finishes — never during a resize, so a clamped
-     intermediate value can't overwrite the user's real zoom. */
+  // Snapshot zoom as a ratio of the fit distance. Only after a gesture
+  // settles, never mid-resize, or a clamped value overwrites the real one.
   const commitZoomRatio = useCallback(() => {
     zoomRatioRef.current = camera.position.length() / fitRef.current;
   }, [camera]);
 
-  /* Focus the selected location — also covers selections made in the
-     list view, where the scene was unmounted when the click happened.
-     Selecting a marker rotates only: changing the zoom here would cross a
-     clustering threshold and make the whole marker layer rebuild. */
+  // Fly to the selected location. Rotate only — changing zoom here
+  // crosses a clustering threshold and rebuilds the whole marker layer.
   useEffect(() => {
     if (!focus) return;
-    /* Filter-driven moves never zoom past the framing distance, so a
-       broad query cannot crop the globe. An explicit dataset selection
-       is a user action, so it is allowed all the way in. */
+    // Filter moves stay behind the framing distance so a broad query
+    // can't crop the globe. A direct selection may go all the way in.
     const distance =
       focus.distance === undefined
         ? undefined
@@ -454,18 +338,13 @@ export function CameraRig({
     apiRef.current?.flyTo(focus.latitude, focus.longitude, distance);
   }, [focus, apiRef]);
 
-  /* ---------------------------------------------------------------- *
-   * Per-frame: run camera animations, publish zoom level.
-   * ---------------------------------------------------------------- */
+  // Per-frame: animations, auto-rotate, zoom level.
   const current = useRef(new THREE.Spherical());
 
   useFrame((_, delta) => {
     const anim = animRef.current;
 
-    /* Auto-rotation, integrated against the real frame delta rather than
-       left to OrbitControls' own `autoRotate` — see
-       AUTO_ROTATE_RADIANS_PER_SECOND. Skipped while a camera animation
-       owns the position, so a fly-to isn't fought frame by frame. */
+    // Skipped while an animation owns the camera.
     if (autoRotate && !reducedMotion && !anim.active) {
       camera.position.applyAxisAngle(
         AUTO_ROTATE_AXIS,
@@ -495,7 +374,7 @@ export function CameraRig({
         commitZoomRatio();
       }
     } else if (pendingFitRef.current !== null) {
-      /* Ease into the framing distance a layout change asked for. */
+      // Ease into the distance a layout change asked for.
       const targetRadius = pendingFitRef.current;
       const radius = camera.position.length();
       const next = THREE.MathUtils.lerp(
@@ -514,9 +393,8 @@ export function CameraRig({
 
     const distance = camera.position.length();
 
-    /* Google-Earth-style handling: the closer you are, the less ground a
-       drag covers, so the surface tracks the pointer instead of whipping
-       past it. */
+    // Slow the drag down as you get closer, like Google Earth, so the
+    // surface tracks the pointer instead of flying past it.
     const controls = controlsRef.current;
     if (controls) {
       const span = Math.max(0.001, fitRef.current - MIN_CAMERA_DISTANCE);
@@ -550,7 +428,7 @@ export function CameraRig({
       maxPolarAngle={Math.PI - 0.12}
       onStart={() => {
         animRef.current.active = false;
-        /* The user is driving now; drop any queued framing correction. */
+        // User's driving now, drop any queued correction.
         pendingFitRef.current = null;
         onUserInteract();
       }}

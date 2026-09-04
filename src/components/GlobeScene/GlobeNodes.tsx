@@ -7,37 +7,29 @@ import { DatasetMarker } from '../DatasetMarker/DatasetMarker';
 import type { NodeRegistration } from './SpriteNode';
 
 const REFERENCE_DISTANCE = 2.6;
-/** Canvas height, in px, that marker sizing is normalised against — see
- *  `viewportScale`. Set so the windowed stage (~694px at 1440x900) keeps
- *  the marker size it had before sizing was made height-independent. */
+/** Normalises marker size against canvas height. Set so the windowed
+ *  stage keeps the size it already had. */
 const MARKER_REFERENCE_HEIGHT = 634;
 const DECLUTTER_INTERVAL = 0.14;
-/** Minimum time a sprite must hold its declutter state before it's
- * allowed to flip again. The screen-space hysteresis below only guards
- * against sub-pixel jitter at a *fixed* camera — during auto-rotate the
- * globe is genuinely turning, so two markers sitting near the overlap
- * threshold can drift across it and back on consecutive 140ms passes,
- * which reads as a soft on/off flicker even though nothing is actually
- * wrong. This cooldown stops a sprite from re-flipping within it. */
+/** Cooldown before a sprite may flip state again. Hysteresis alone only
+ *  covers jitter at a fixed camera; while auto-rotating, markers drift
+ *  across the threshold and back and it reads as flicker. */
 const MIN_STATE_DWELL = 0.5;
 
 type GlobeNodesProps = {
   nodes: ClusterNode[];
   selectedLocationId: string | null;
   onActivate: (node: ClusterNode) => void;
-  /** How many markers are actually on screen right now (facing the
-      camera, not hidden behind a bigger neighbour). Throttled. */
+  /** Markers actually on screen — facing the camera and not hidden.
+      Throttled. */
   onVisibleCountChange?: (count: number) => void;
 };
 
 const VISIBLE_COUNT_INTERVAL = 0.2;
 
 /**
- * Owns the single per-frame loop for every marker and cluster:
- *  - hides nodes on the far side of the globe (with a soft limb fade)
- *  - keeps apparent marker size constant while zooming
- *  - animates hover / selection scale
- *  - suppresses overlapping nodes using a throttled screen-space pass
+ * One per-frame loop for every marker and cluster: limb fade, constant
+ * apparent size, selection pulse, and overlap suppression.
  */
 export function GlobeNodes({
   nodes,
@@ -50,9 +42,8 @@ export function GlobeNodes({
   const visibleCountClock = useRef(0);
   const lastReportedVisible = useRef(-1);
   const projected = useRef(new THREE.Vector3());
-  /* Bumped whenever nodes are added or removed, so the overlap pass can
-     run on the very next frame instead of up to 140 ms later — that lag
-     is what made re-clustering flicker. */
+  // Bumped on add/remove so the overlap pass runs next frame rather
+  // than up to 140ms later, which made re-clustering flicker.
   const registryVersion = useRef(0);
   const declutteredVersion = useRef(-1);
 
@@ -65,11 +56,9 @@ export function GlobeNodes({
     [],
   );
 
-  /** Screen-space overlap pass: hides whichever sprites are crowded out
-   * by a bigger or already-visible neighbour. Runs on a throttle (not
-   * every frame — projecting every sprite to screen space isn't free)
-   * but also whenever the registered node set has actually changed, so
-   * a re-cluster doesn't wait out the rest of the throttle window. */
+  /** Hides sprites crowded out by a bigger neighbour. Throttled, since
+   *  projecting everything each frame isn't free — but runs immediately
+   *  when the node set changes so a re-cluster isn't delayed. */
   function updateDeclutter(
     entries: NodeRegistration[],
     camera: THREE.Camera,
@@ -97,14 +86,9 @@ export function GlobeNodes({
     for (const entry of byPriority) {
       const { sprite } = entry;
 
-      /* Skip anything behind the horizon. Sprites on the far side of the
-         globe still project to a screen position — often right on top of
-         a front-facing one — so without this they claimed screen space
-         and suppressed markers the user can actually see. Because the
-         priority sort runs biggest-first, a large cluster hidden round
-         the back would silently hide a smaller visible neighbour, and as
-         the globe auto-rotated those back-side sprites swept through and
-         knocked out front markers for a second or two at a time. */
+      // Skip anything behind the horizon. Back-facing sprites still
+      // project onto the visible face, so they were claiming space and
+      // hiding markers you can actually see.
       if (sprite.position.dot(camera.position) - 1 <= 0) {
         sprite.userData.declutterHidden = false;
         continue;
@@ -117,18 +101,15 @@ export function GlobeNodes({
 
       const wasHidden = sprite.userData.declutterHidden === true;
 
-      // Hysteresis: a sprite that was already visible needs a clearly
-      // tighter overlap before it's hidden than a hidden one needs to
-      // reappear. Without this, pairs sitting right at the overlap
-      // threshold flicker in and out every pass from sub-pixel jitter
-      // in the projected position alone.
+      // Hysteresis — a visible sprite needs a tighter overlap to be
+      // hidden than a hidden one needs to reappear, or pairs sitting on
+      // the threshold flicker every pass.
       const hysteresis = wasHidden ? 1 : 0.65;
       const overlapsKept = kept.some((other) => {
         const dx = x - other.x;
         const dy = y - other.y;
-        // Measured against the solid disc, not the glow halo the
-        // sprite texture also contains — otherwise bigger markers
-        // would silently suppress most of their neighbours.
+        // Against the solid disc, not the glow, or big markers
+        // suppress most of their neighbours.
         const minGap = (r + other.r) * 0.4 * hysteresis;
         return dx * dx + dy * dy < minGap * minGap;
       });
@@ -146,10 +127,7 @@ export function GlobeNodes({
     }
   }
 
-  /** Per-sprite visibility, fade and scale: fades sprites out past the
-   * horizon, cross-fades declutter-hidden ones instead of snapping them,
-   * pulses the selected marker, and keeps apparent size roughly constant
-   * regardless of camera distance or viewport size. */
+  /** Per-sprite fade, scale and visibility. */
   function updateNodeAppearance(
     entry: NodeRegistration,
     camera: THREE.Camera,
@@ -161,8 +139,7 @@ export function GlobeNodes({
     const { sprite } = entry;
     const material = sprite.material as THREE.SpriteMaterial;
 
-    // Horizon test: a sprite is on the far side of the globe once its
-    // position no longer faces the camera.
+    // Far side of the globe once it stops facing the camera.
     const facing = sprite.position.dot(camera.position) - 1;
     const fade = THREE.MathUtils.clamp(facing / (0.12 * cameraDistance), 0, 1);
     const hidden = sprite.userData.declutterHidden === true;
@@ -176,26 +153,13 @@ export function GlobeNodes({
 
     const baseScale = (sprite.userData.baseScale as number) ?? 0.12;
     const selected = sprite.userData.selected === true;
-    // The selected marker breathes gently so the eye can find it again
-    // after rotating away — subtle on purpose, a beacon not an alarm.
-    // Hover no longer changes scale: info only appears on click now, so
-    // nothing should react to mouse proximity alone.
+    // Gentle breathe so you can find the selection after rotating away.
     const selectedPulse = 1.16 + Math.sin(elapsedTime * 2.4) * 0.07;
     const emphasis = selected ? selectedPulse : 1;
-    /* Cancel the canvas height out of the sprite's *screen* size.
-       A sprite projects to roughly `worldSize / distance × canvasHeight`
-       pixels, and the `pointDistance` factor below already cancels the
-       distance term — which leaves pixel size directly proportional to
-       canvas height. Fullscreen's canvas is about a quarter taller than
-       the windowed stage, so markers came out visibly bigger there even
-       though the globe itself is now the same size in both views. The
-       old form (`size.height / 760`) scaled the same way as the height
-       rather than against it, compounding the difference instead of
-       removing it.
-       `MARKER_REFERENCE_HEIGHT` is chosen so the windowed view keeps
-       exactly the size it already had; every other viewport now matches
-       it. The clamp still lets markers shrink slightly on very short
-       viewports so they never swamp the globe. */
+    // Cancel canvas height out of the screen size. A sprite projects to
+    // ~worldSize / distance * canvasHeight, and pointDistance below
+    // already handles distance — so pixel size tracked canvas height and
+    // markers grew in fullscreen.
     const viewportScale = THREE.MathUtils.clamp(
       MARKER_REFERENCE_HEIGHT / size.height,
       0.5,

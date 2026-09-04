@@ -17,20 +17,15 @@
 .commandDock {
   position: relative;
   z-index: 20;
-  /* Fully opaque, and ending on the exact colour `.canvasBackdrop`
-     begins with, so the masthead hands off to the workspace without a
-     step. The old rule ended on a translucent blue that composited
-     against the near-white page background, which is why its bottom
-     edge never quite matched whatever was painted below it. */
+  /* Opaque, and ends on the colour .canvasBackdrop starts with. The old
+     translucent blue composited against the page and never matched. */
   background: linear-gradient(
     180deg,
     var(--masthead-top) 0%,
     var(--masthead-bottom) 100%
   );
-  /* No border and no drop shadow: both drew an explicit line across the
-     full width, which is what made the masthead read as a separate
-     stacked block rather than the top of one continuous environment.
-     The gradient handoff below does the separating instead. */
+  /* No border or shadow — either one draws a line across the full width
+     and the masthead reads as a separate block. */
 }
 
 /* Deep blue workspace: the globe sits directly in it and the white
@@ -49,14 +44,9 @@
       rgba(37, 111, 176, 0.35) 0%,
       rgba(7, 44, 86, 0) 62%
     ),
-    /* Straight vertical (180deg), and — crucially — starting on the
-       masthead's own bottom colour rather than jumping straight to the
-       pale `--workspace-top`. Those two are far apart (#006b98 vs
-       #9dcfe1), so butting them together put a hard light/dark reversal
-       exactly on the tabs-row edge: the single most visible "stacked
-       rectangles" seam on the page. Ramping out of the masthead colour
-       over the first fifth instead reads as one continuous sky that
-       opens up behind the globe, then deepens to the ocean navy. */
+    /* Starts on the masthead's bottom colour rather than jumping to the
+       pale --workspace-top. #006b98 against #9dcfe1 is a hard reversal
+       right on the tabs edge; ramping out of it reads as one sky. */
     linear-gradient(
       180deg,
       var(--masthead-bottom) 0%,
@@ -80,14 +70,9 @@
   inset: 0;
   pointer-events: none;
   background:
-    /* Convergence layer, listed first so it paints over the decorative
-       glows below it. The workspace hands off to `.below`, whose own
-       gradient starts on `--workspace-bottom` — but the bottom-left
-       glow lightens these last rows, so the two sides of that boundary
-       no longer matched and the difference read as a drawn line. This
-       eases whatever the decorative layers produced back to exactly
-       `--workspace-bottom` by the final row, making the handoff colour
-       identical on both sides regardless of what is layered above. */
+    /* Painted over the glows below so the last row lands exactly on
+       --workspace-bottom, which is where .below starts. Without it the
+       glow lightens these rows and the boundary shows as a line. */
     linear-gradient(
       180deg,
       transparent 84%,
@@ -115,15 +100,9 @@
      than the globe sitting directly in the page. */
   height: clamp(560px, 78vh, 900px);
   display: flex;
-  /* Minimal top padding and none at the bottom: the workspace gradient
-     already separates the tabs row from the globe, so insets here only
-     opened empty strips that made the stage look like a panel embedded
-     below the controls rather than a continuation of them. The bottom
-     one was also visible as a hairline — the canvas draws the starfield
-     and atmosphere, so the padding strip below it was bare gradient
-     against subtly-lit gradient, and that boundary read as a drawn line
-     across the full width. Floating panels carry their own insets, so
-     nothing here depends on this padding for breathing room. */
+  /* No bottom padding: the strip below the canvas is bare gradient
+     against lit gradient and shows as a hairline. Floating panels carry
+     their own insets so nothing depends on it. */
   padding: var(--space-2) var(--space-5) 0;
   width: 100%;
   margin: 0 auto;
@@ -367,12 +346,9 @@
   inset: 0;
   z-index: 80;
   padding: var(--space-3);
-  /* Deep space rather than the page's own near-white `--app-bg`.
-     The scene already renders a starfield and clears the canvas to
-     transparent, so whatever this paints *is* the sky — against the
-     light page background the stars were simply invisible. Not flat
-     black: a faint blue lift behind the globe keeps some depth and
-     stops the edges reading as a dead rectangle. */
+  /* The canvas clears to transparent, so whatever this paints is the
+     sky — on the light page background the stars were invisible. Not
+     flat black; a faint blue lift keeps some depth. */
   background:
     radial-gradient(
       ellipse 65% 65% at 50% 48%,
@@ -385,17 +361,10 @@
   margin: 0;
 }
 
-/* Lifts the whole workspace above the masthead while the globe is
-   fullscreen.
-   `.stageFullscreen`'s own `z-index: 80` is not enough on its own: the
-   `.glow` utility sets `z-index: 1` on its direct children (global.css,
-   `.glow > *`), so `.main` establishes a stacking context and every
-   z-index inside it — 80 included — is resolved *within* that layer.
-   Against the header's `z-index: 60` in the root context, the whole
-   workspace therefore lost, and the masthead painted over the top of
-   the globe: the sphere stayed centred in its canvas but the visible
-   area was cropped from above, which read as it sitting too low.
-   Raising the ancestor is what actually escapes that trap. */
+/* .stageFullscreen's z-index: 80 isn't enough on its own — .glow sets
+   z-index: 1 on its children (global.css), so .main makes a stacking
+   context and the 80 resolves inside it, losing to the header's 60.
+   Raising the ancestor is what escapes that. */
 .canvasBackdropFullscreen {
   z-index: 90;
 }
@@ -477,14 +446,9 @@
  * portal's own introduction and headline figures.
  * ----------------------------------------------------------------- */
 
-/* Deliberately the calm counterpart to the workspace above: a light
-   neutral ground, thin grey rules and almost no shadow. The page is
-   meant to read as "immersive exploration above -> structured
-   reference below", and carrying the glass/gradient treatment down
-   here flattened that contrast — everything looked equally atmospheric
-   and nothing felt like settled information. The narrow tinted band at
-   the very top is the only carry-over, easing the deep workspace into
-   the light section so the handoff still has no hard edge. */
+/* The calm counterpart to the workspace: light ground, thin rules,
+   almost no shadow. The tinted band at the top eases the deep
+   workspace into it so the handoff has no hard edge. */
 .below {
   position: relative;
   isolation: isolate;

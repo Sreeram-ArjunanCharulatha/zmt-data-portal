@@ -24,21 +24,11 @@
   user-select: none;
 }
 
-/* The bottom-fade overlay that used to live here is gone. It existed to
-   hide the wordmark being clipped by `.wordmark`'s `overflow: hidden`,
-   but that clipping was a bug in useFitWordmark's height solve (it
-   capped *font-size* rather than rendered ink height, so the mark came
-   out ~106% of its container). With the solve fixed the mark always
-   lands inside its box, and the overlay was actively harmful: it
-   painted a solid `--workspace-bottom` band inset from the section edge
-   by `.main`'s padding, which read as its own faint horizontal line
-   against the surrounding gradient. */
+/* No bottom-fade overlay here any more — it was hiding a clipping bug
+   in useFitWordmark's height solve, and painted its own faint line. */
 
-/* Fullscreen hides the mark. `visibility` rather than `display: none`
-   so the element keeps its box and `useFitWordmark`'s ResizeObserver
-   still fires — with `display: none` the container measures 0x0, the
-   hook bails on the zero-size guard, and the mark comes back at
-   whatever size it last held before fullscreen. */
+/* visibility, not display: none — the hook's ResizeObserver needs a
+   box to measure or the mark returns at a stale size. */
 .wordmarkHidden {
   visibility: hidden;
 }
@@ -64,17 +54,8 @@
      clipping bug. */
   letter-spacing: -0.055em;
   color: #ffffff;
-  /* Soft-light blend against the workspace gradient underneath is what
-     actually gives the mark its washed-out, slim appearance — not the
-     font weight itself, which stays heavy (800). Opacity dropped from
-     the original 0.5 spec value — even blended, full weight at 0.5 read
-     as too dominant against the workspace, competing with the globe
-     instead of sitting quietly behind it. */
-  /* Stepped down over several passes: 0.5 (original spec) -> 0.2 -> 0.14
-     -> 0.09. The mark is branding, not content — the globe has to be the
-     first thing the eye lands on, and at each higher value the
-     letterforms still read as a second object competing with it rather
-     than as a watermark in the background. */
+  /* The soft-light blend is what makes it look washed out, not the font
+     weight. Down from 0.5 originally — it's branding, not content. */
   opacity: 0.09;
   mix-blend-mode: soft-light;
   text-shadow: 0 18px 58px rgba(2, 27, 48, 0.14);
@@ -87,11 +68,8 @@
   width: 100%;
   height: 100%;
   display: block;
-  /* NB: `touch-action` deliberately is not set here. R3F writes
-     `touch-action: none` as an *inline* style on this same element, and
-     inline beats the stylesheet — a rule here looks like it applies but
-     is silently overridden. It's passed through the <Canvas> `style`
-     prop in GlobeScene.tsx instead; see the comment there. */
+  /* touch-action isn't set here on purpose — R3F writes it inline on
+     this element, which beats the stylesheet. See GlobeScene.tsx. */
 }
 
 .loading {
@@ -205,9 +183,8 @@
 
 /* --------------------------- statistics -------------------------- */
 
-/* One compact capsule, centred along the bottom edge. Deliberately
-   lighter and smaller than the control dock — a status line the eye can
-   skim, not a second toolbar competing for attention. */
+/* One compact capsule along the bottom edge. Lighter and smaller than
+   the control dock — a status line to skim, not a second toolbar. */
 .stats {
   position: absolute;
   left: 50%;
@@ -219,9 +196,6 @@
   gap: var(--space-4);
   padding: 7px var(--space-4);
   border-radius: var(--radius-pill);
-  /* Lighter ground and a softer edge than the control dock — this is a
-     status line to skim, and it sits over the globe, so it should
-     recede rather than assert itself as a second toolbar. */
   background: rgba(3, 20, 32, 0.7);
   border: 1px solid rgba(190, 228, 250, 0.14);
   box-shadow: var(--scene-shadow-sm);
@@ -262,9 +236,7 @@
 }
 
 .statLabel {
-  /* Was 9px — below the point where an uppercase, letter-spaced label
-     stays comfortably readable. The figures carry the emphasis, so the
-     label can afford a little more size at lower contrast. */
+  /* 9px was too small for uppercase + tracking. */
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.05em;
